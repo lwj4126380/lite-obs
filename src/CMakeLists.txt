@@ -79,6 +79,10 @@ set(liteobs_graphics_HEADERS
     graphics/graphics.h
     graphics/gs_device.h
     graphics/gs_vertexbuffer.h
+    graphics/gs_texture.h
+    graphics/gs_shader.h
+    graphics/shaders.h
+    graphics/gs_program.h
 )
 
 set(liteobs_graphics_SOURCES
@@ -86,6 +90,10 @@ set(liteobs_graphics_SOURCES
     graphics/graphics.cpp
     graphics/gs_device.cpp
     graphics/gs_vertexbuffer.cpp
+    graphics/gs_texture.cpp
+    graphics/gs_shader.cpp
+    graphics/shaders.cpp
+    graphics/gs_program.cpp
 )
 
 qt_add_executable(lite-obs
@@ -97,6 +105,10 @@ qt_add_executable(lite-obs
   ${liteobs_HEADERS}
   ${liteobs_SOURCES}
 )
+
+if(MSVC)
+    add_subdirectory("${CMAKE_SOURCE_DIR}/third-party/glad")
+endif()
 
 target_link_libraries(lite-obs
     PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Quick
@@ -119,6 +131,10 @@ if(ANDROID)
         HINTS ${GLES3_INCLUDE_DIR}/../lib/${ARCH}/${ANDROID_ABI})
 
     target_link_libraries(lite-obs PRIVATE ${GLES3_LIBRARY})
+endif()
+
+if(MSVC)
+    target_link_libraries(lite-obs PRIVATE glad)
 endif()
 
 target_compile_definitions(lite-obs PRIVATE LITEOBS_LIBRARY)

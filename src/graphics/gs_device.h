@@ -18,7 +18,6 @@ public:
     void device_enter_context();
     void device_leave_context();
 
-    std::unique_ptr<gs_vertexbuffer> device_vertexbuffer_create(std::unique_ptr<gs_vb_data> data, uint32_t flags);
     void device_blend_function_separate(gs_blend_type src_c, gs_blend_type dest_c, gs_blend_type src_a, gs_blend_type dest_a);
 
 private:

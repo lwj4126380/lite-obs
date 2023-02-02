@@ -49,6 +49,7 @@ struct obs_video_info {
 };
 
 struct lite_obs_data;
+struct lite_obs_private;
 class lite_obs
 {
 public:
@@ -64,7 +65,7 @@ private:
     int obs_init_graphics(obs_video_info *ovi);
 
 private:
-    std::unique_ptr<lite_obs_data> data;
+    std::unique_ptr<lite_obs_private> d_ptr{};
 };
 
 extern lite_obs obs;

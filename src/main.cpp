@@ -1,7 +1,8 @@
 #include "audio_output.h"
 #include "audio_resampler.h"
 #include <QDebug>
-#include <QCoreApplication>
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
 #include <QTimer>
 #include <thread>
 #include <QElapsedTimer>
@@ -9,11 +10,15 @@
 #include "util/threading.h"
 #include "video_frame.h"
 #include "video_output.h"
-
+#include "lite_source.h"
+#include "lite_obs.h"
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication app(argc, argv);
+    QGuiApplication app(argc, argv);
+
+    obs_video_info ovi;
+    obs.obs_reset_video(&ovi);
 
 //    audio_output *output = new audio_output;
 //    audio_output_info info;
@@ -72,6 +77,14 @@ int main(int argc, char *argv[])
 //    output->audio_output_close();
 //    delete output;
 
-//    return 0;
+    QQmlApplicationEngine engine;
+    const QUrl url(QStringLiteral("qrc:/main.qml"));
+//    QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
+//                     &app, [url](QObject *obj, const QUrl &objUrl) {
+//        if (!obj && url == objUrl)
+//            QCoreApplication::exit(-1);
+//    }, Qt::QueuedConnection);
+    engine.load(url);
+
     return app.exec();
 }

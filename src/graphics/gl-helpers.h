@@ -1,9 +1,6 @@
 #pragma once
 
-#ifdef __ANDROID__
-#include <GLES3/gl3.h>
-#endif
-
+#include "gs_subsystem_info.h"
 #include "util/log.h"
 
 static const char *gl_error_to_str(GLenum errorcode)
@@ -178,10 +175,10 @@ static inline bool gl_get_integer_v(GLenum pname, GLint *params)
 	return gl_success("glGetIntegerv");
 }
 
-//extern bool gl_init_face(GLenum target, GLenum type, uint32_t num_levels,
-//			 GLenum format, GLint internal_format, bool compressed,
-//			 uint32_t width, uint32_t height, uint32_t size,
-//			 const uint8_t ***p_data);
+bool gl_init_face(GLenum target, GLenum type, uint32_t num_levels,
+             GLenum format, GLint internal_format, bool compressed,
+             uint32_t width, uint32_t height, uint32_t size,
+             const uint8_t ***p_data);
 
 //extern bool gl_copy_texture(struct gs_device *device, struct gs_texture *dst,
 //			    uint32_t dst_x, uint32_t dst_y,
@@ -191,5 +188,4 @@ static inline bool gl_get_integer_v(GLenum pname, GLint *params)
 bool gl_create_buffer(GLenum target, GLuint *buffer, GLsizeiptr size,
                  const GLvoid *data, GLenum usage);
 
-//extern bool update_buffer(GLenum target, GLuint buffer, const void *data,
-//			  size_t size);
+bool update_buffer(GLenum target, GLuint buffer, const void *data, size_t size);

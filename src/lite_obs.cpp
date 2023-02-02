@@ -4,6 +4,7 @@
 #include <list>
 
 #include "graphics/graphics.h"
+#include "graphics/gs_texture.h"
 
 lite_obs obs;
 
@@ -12,43 +13,54 @@ struct lite_obs_data
     std::recursive_mutex sources_mutex;
     std::recursive_mutex audio_sources_mutex;
 
-    std::list<std::shared_ptr<lite_source>> sources;
-    std::list<std::shared_ptr<lite_source>> audio_sources;
+    std::list<std::shared_ptr<lite_source>> sources{};
+    std::list<std::shared_ptr<lite_source>> audio_sources{};
+};
+
+struct lite_obs_core_video
+{
+    std::unique_ptr<graphics_subsystem> graphics{};
+};
+
+struct lite_obs_private
+{
+    struct lite_obs_data data{};
+    struct lite_obs_core_video video{};
 };
 
 lite_obs::lite_obs()
 {
-    data = std::make_unique<lite_obs_data>();
+    d_ptr = std::make_unique<lite_obs_private>();
 }
 
 void lite_obs::add_source(std::shared_ptr<lite_source> source, bool is_audio_source)
 {
     if (is_audio_source) {
-        std::lock_guard<std::recursive_mutex> lock(data->audio_sources_mutex);
-        data->audio_sources.push_back(source);
+        std::lock_guard<std::recursive_mutex> lock(d_ptr->data.audio_sources_mutex);
+        d_ptr->data.audio_sources.push_back(source);
     }
 
-    std::lock_guard<std::recursive_mutex> lock(data->sources_mutex);
-    data->sources.push_back(source);
+    std::lock_guard<std::recursive_mutex> lock(d_ptr->data.sources_mutex);
+    d_ptr->data.sources.push_back(source);
 }
 
 void lite_obs::remove_source(std::shared_ptr<lite_source> source)
 {
     {
-        std::lock_guard<std::recursive_mutex> lock(data->audio_sources_mutex);
-        for (auto iter = data->audio_sources.begin(); iter != data->audio_sources.end(); iter++) {
+        std::lock_guard<std::recursive_mutex> lock(d_ptr->data.audio_sources_mutex);
+        for (auto iter = d_ptr->data.audio_sources.begin(); iter != d_ptr->data.audio_sources.end(); iter++) {
             if (source == *iter) {
-                data->audio_sources.erase(iter);
+                d_ptr->data.audio_sources.erase(iter);
                 break;
             }
         }
     }
 
     {
-        std::lock_guard<std::recursive_mutex> lock(data->sources_mutex);
-        for (auto iter = data->sources.begin(); iter != data->sources.end(); iter++) {
+        std::lock_guard<std::recursive_mutex> lock(d_ptr->data.sources_mutex);
+        for (auto iter = d_ptr->data.sources.begin(); iter != d_ptr->data.sources.end(); iter++) {
             if (source == *iter) {
-                data->sources.erase(iter);
+                d_ptr->data.sources.erase(iter);
                 break;
             }
         }
@@ -63,10 +75,27 @@ int lite_obs::obs_reset_video(obs_video_info *ovi)
 int lite_obs::obs_init_graphics(obs_video_info *ovi)
 {
     std::thread th([](){
-
-        qDebug() <<"FFFFFF " << sizeof(glm::vec3);
         auto gl = std::make_unique<graphics_subsystem>();
-        qDebug() <<"+++++++++++ " << gl->gs_create();
+        auto errcode = gl->gs_create();
+        if (errcode != GS_SUCCESS) {
+            blog(LOG_DEBUG, "obs_init_graphics fail.");
+            return;
+        }
+
+        //d_ptr->video.graphics = std::move(gl);
+        gs_enter_contex(gl);
+
+        gl->gs_effect_init();
+        {
+        uint8_t transparent_tex_data[2 * 2 * 4] = {0};
+        const uint8_t *transparent_tex = transparent_tex_data;
+        auto tex = gs_texture_create(2, 2, gs_color_format::GS_RGBA, 1, &transparent_tex, GS_DYNAMIC);
+        uint8_t *ptr;
+        uint32_t linesize_out;
+        blog(LOG_DEBUG, "++++++++++ %d", tex->gs_texture_map(&ptr, &linesize_out));
+        tex->gs_texture_unmap();
+        }
+        gs_leave_context();
     });
 
     th.join();

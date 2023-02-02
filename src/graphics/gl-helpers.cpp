@@ -1,46 +1,47 @@
 #include "gl-helpers.h"
+#include <memory>
 
-//bool gl_init_face(GLenum target, GLenum type, uint32_t num_levels,
-//		  GLenum format, GLint internal_format, bool compressed,
-//		  uint32_t width, uint32_t height, uint32_t size,
-//		  const uint8_t ***p_data)
-//{
-//	bool success = true;
-//	const uint8_t **data = p_data ? *p_data : NULL;
-//	uint32_t i;
+bool gl_init_face(GLenum target, GLenum type, uint32_t num_levels,
+          GLenum format, GLint internal_format, bool compressed,
+          uint32_t width, uint32_t height, uint32_t size,
+          const uint8_t ***p_data)
+{
+    bool success = true;
+    const uint8_t **data = p_data ? *p_data : NULL;
+    uint32_t i;
 
-//	for (i = 0; i < num_levels; i++) {
-//		if (compressed) {
-//			glCompressedTexImage2D(target, i, internal_format,
-//					       width, height, 0, size,
-//					       data ? *data : NULL);
-//			if (!gl_success("glCompressedTexImage2D"))
-//				success = false;
+    for (i = 0; i < num_levels; i++) {
+        if (compressed) {
+            glCompressedTexImage2D(target, i, internal_format,
+                           width, height, 0, size,
+                           data ? *data : NULL);
+            if (!gl_success("glCompressedTexImage2D"))
+                success = false;
 
-//		} else {
-//			glTexImage2D(target, i, internal_format, width, height,
-//				     0, format, type, data ? *data : NULL);
-//			if (!gl_success("glTexImage2D"))
-//				success = false;
-//		}
+        } else {
+            glTexImage2D(target, i, internal_format, width, height,
+                     0, format, type, data ? *data : NULL);
+            if (!gl_success("glTexImage2D"))
+                success = false;
+        }
 
-//		if (data)
-//			data++;
+        if (data)
+            data++;
 
-//		size /= 4;
-//		width /= 2;
-//		height /= 2;
+        size /= 4;
+        width /= 2;
+        height /= 2;
 
-//		if (width == 0)
-//			width = 1;
-//		if (height == 0)
-//			height = 1;
-//	}
+        if (width == 0)
+            width = 1;
+        if (height == 0)
+            height = 1;
+    }
 
-//	if (data)
-//		*p_data = data;
-//	return success;
-//}
+    if (data)
+        *p_data = data;
+    return success;
+}
 
 //static bool gl_copy_fbo(struct gs_texture *dst, uint32_t dst_x, uint32_t dst_y,
 //			struct gs_texture *src, uint32_t src_x, uint32_t src_y,
@@ -130,24 +131,24 @@ bool gl_create_buffer(GLenum target, GLuint *buffer, GLsizeiptr size,
     return success;
 }
 
-//bool update_buffer(GLenum target, GLuint buffer, const void *data, size_t size)
-//{
-//	void *ptr;
-//	bool success = true;
+bool update_buffer(GLenum target, GLuint buffer, const void *data, size_t size)
+{
+    void *ptr;
+    bool success = true;
 
-//	if (!gl_bind_buffer(target, buffer))
-//		return false;
+    if (!gl_bind_buffer(target, buffer))
+        return false;
 
-//	/* glMapBufferRange with these flags will actually give far better
-//	 * performance than a plain glMapBuffer call */
-//	ptr = glMapBufferRange(target, 0, size,
-//			       GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
-//	success = gl_success("glMapBufferRange");
-//	if (success && ptr) {
-//		memcpy(ptr, data, size);
-//		glUnmapBuffer(target);
-//	}
+    /* glMapBufferRange with these flags will actually give far better
+     * performance than a plain glMapBuffer call */
+    ptr = glMapBufferRange(target, 0, size,
+                   GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+    success = gl_success("glMapBufferRange");
+    if (success && ptr) {
+        memcpy(ptr, data, size);
+        glUnmapBuffer(target);
+    }
 
-//	gl_bind_buffer(target, 0);
-//	return success;
-//}
+    gl_bind_buffer(target, 0);
+    return success;
+}

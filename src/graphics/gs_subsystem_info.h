@@ -1,8 +1,12 @@
 #pragma once
 
-#ifdef __ANDROID__
+#if defined __ANDROID__
 #include <GLES3/gl3.h>
 #include <EGL/egl.h>
+#elif defined WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <glad/glad_wgl.h>
 #endif
 
 #define GS_SUCCESS 0
@@ -61,3 +65,115 @@ static inline GLenum convert_gs_blend_type(gs_blend_type type)
 
     return GL_ONE;
 }
+
+enum class gs_color_format {
+    GS_UNKNOWN,
+    GS_A8,
+    GS_R8,
+    GS_RGBA,
+    GS_RGBA16F,
+    GS_RGBA32F,
+    GS_RG16F,
+    GS_RG32F,
+    GS_R16F,
+    GS_R32F,
+    GS_R8G8,
+};
+
+static inline GLenum convert_gs_format(gs_color_format format)
+{
+    switch (format) {
+    case gs_color_format::GS_A8:
+        return GL_RED;
+    case gs_color_format::GS_R8:
+        return GL_RED;
+    case gs_color_format::GS_RGBA:
+        return GL_RGBA;
+    case gs_color_format::GS_RGBA16F:
+        return GL_RGBA;
+    case gs_color_format::GS_RGBA32F:
+        return GL_RGBA;
+    case gs_color_format::GS_RG16F:
+        return GL_RG;
+    case gs_color_format::GS_RG32F:
+        return GL_RG;
+    case gs_color_format::GS_R8G8:
+        return GL_RG;
+    case gs_color_format::GS_R16F:
+        return GL_RED;
+    case gs_color_format::GS_R32F:
+        return GL_RED;
+    case gs_color_format::GS_UNKNOWN:
+        return 0;
+    }
+
+    return 0;
+}
+
+static inline GLenum convert_gs_internal_format(gs_color_format format)
+{
+    switch (format) {
+    case gs_color_format::GS_A8:
+        return GL_R8; /* NOTE: use GL_TEXTURE_SWIZZLE_x */
+    case gs_color_format::GS_R8:
+        return GL_R8;
+    case gs_color_format::GS_RGBA:
+        return GL_RGBA;
+    case gs_color_format::GS_RGBA16F:
+        return GL_RGBA16F;
+    case gs_color_format::GS_RGBA32F:
+        return GL_RGBA32F;
+    case gs_color_format::GS_RG16F:
+        return GL_RG16F;
+    case gs_color_format::GS_RG32F:
+        return GL_RG32F;
+    case gs_color_format::GS_R8G8:
+        return GL_RG8;
+    case gs_color_format::GS_R16F:
+        return GL_R16F;
+    case gs_color_format::GS_R32F:
+        return GL_R32F;
+    case gs_color_format::GS_UNKNOWN:
+        return 0;
+    }
+
+    return 0;
+}
+
+static inline GLenum get_gl_format_type(gs_color_format format)
+{
+    switch (format) {
+    case gs_color_format::GS_A8:
+        return GL_UNSIGNED_BYTE;
+    case gs_color_format::GS_R8:
+        return GL_UNSIGNED_BYTE;
+    case gs_color_format::GS_RGBA:
+        return GL_UNSIGNED_BYTE;
+    case gs_color_format::GS_RGBA16F:
+        return GL_UNSIGNED_SHORT;
+    case gs_color_format::GS_RGBA32F:
+        return GL_FLOAT;
+    case gs_color_format::GS_RG16F:
+        return GL_UNSIGNED_SHORT;
+    case gs_color_format::GS_RG32F:
+        return GL_FLOAT;
+    case gs_color_format::GS_R8G8:
+        return GL_UNSIGNED_BYTE;
+    case gs_color_format::GS_R16F:
+        return GL_UNSIGNED_SHORT;
+    case gs_color_format::GS_R32F:
+        return GL_FLOAT;
+    case gs_color_format::GS_UNKNOWN:
+        return 0;
+    }
+
+    return GL_UNSIGNED_BYTE;
+}
+
+enum class gs_zstencil_format {
+    GS_ZS_NONE,
+    GS_Z16,
+    GS_Z24_S8,
+    GS_Z32F,
+    GS_Z32F_S8X24,
+};

@@ -39,12 +39,13 @@ static int log_output_level = LOG_DEBUG;
 #else
 static int log_output_level = LOG_INFO;
 #endif
-
+#include <QDebug>
 static void def_log_handler(int log_level, const char *format, va_list args)
 {
     char out[4096];
     vsnprintf(out, sizeof(out), format, args);
 
+    qDebug() << out;
     if (log_level <= log_output_level) {
         switch (log_level) {
         case LOG_DEBUG:
