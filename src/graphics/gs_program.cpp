@@ -2,6 +2,11 @@
 #include "gs_subsystem_info.h"
 #include "gl-helpers.h"
 #include "util/log.h"
+#include "graphics.h"
+
+#include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
 
 #include <vector>
 
@@ -107,6 +112,91 @@ error_detach_neither:
     return false;
 }
 
+void gs_program::gs_effect_set_texture(const char *name, std::shared_ptr<gs_texture> tex)
+{
+    auto p = gs_effect_get_param_by_name(name);
+    if (!p)
+        return;
+
+    p->param->texture = tex;
+    p->param->changed = true;
+}
+
+static inline bool validate_param(const program_param &pp, size_t expected_size)
+{
+    if (pp.param->cur_value.size() != expected_size) {
+        blog(LOG_ERROR,
+             "Parameter '%s' set to invalid size %u, "
+             "expected %u",
+             pp.param->name.c_str(), (unsigned int)pp.param->cur_value.size(), (unsigned int)expected_size);
+        return false;
+    }
+
+    return true;
+}
+
+void gs_program::gs_effect_upload_parameters(bool change_only)
+{
+    for (int i = 0; i < d_ptr->params.size(); ++i) {
+        auto &param = d_ptr->params[i];
+        if (change_only && !param.param->changed)
+            continue;
+
+        void *array = param.param->cur_value.data();
+
+        if (param.param->type == gs_shader_param_type::GS_SHADER_PARAM_BOOL ||
+                param.param->type == gs_shader_param_type::GS_SHADER_PARAM_INT) {
+            if (validate_param(param, sizeof(int))) {
+                glUniform1iv(param.obj, 1, (int *)array);
+                gl_success("glUniform1iv");
+            }
+        } else if (param.param->type == gs_shader_param_type::GS_SHADER_PARAM_INT2) {
+            if (validate_param(param, sizeof(int) * 2)) {
+                glUniform2iv(param.obj, 1, (int *)array);
+                gl_success("glUniform2iv");
+            }
+        } else if (param.param->type == gs_shader_param_type::GS_SHADER_PARAM_INT3) {
+            if (validate_param(param, sizeof(int) * 3)) {
+                glUniform3iv(param.obj, 1, (int *)array);
+                gl_success("glUniform3iv");
+            }
+        } else if (param.param->type == gs_shader_param_type::GS_SHADER_PARAM_INT4) {
+            if (validate_param(param, sizeof(int) * 4)) {
+                glUniform4iv(param.obj, 1, (int *)array);
+                gl_success("glUniform4iv");
+            }
+        } else if (param.param->type == gs_shader_param_type::GS_SHADER_PARAM_FLOAT) {
+            if (validate_param(param, sizeof(float))) {
+                glUniform1fv(param.obj, 1, (float *)array);
+                gl_success("glUniform1fv");
+            }
+        } else if (param.param->type == gs_shader_param_type::GS_SHADER_PARAM_VEC2) {
+            if (validate_param(param, sizeof(glm::vec2))) {
+                glUniform2fv(param.obj, 1, (float *)array);
+                gl_success("glUniform2fv");
+            }
+        } else if (param.param->type == gs_shader_param_type::GS_SHADER_PARAM_VEC3) {
+            if (validate_param(param, sizeof(float) * 3)) {
+                glUniform3fv(param.obj, 1, (float *)array);
+                gl_success("glUniform3fv");
+            }
+        } else if (param.param->type == gs_shader_param_type::GS_SHADER_PARAM_VEC4) {
+            if (validate_param(param, sizeof(glm::vec4))) {
+                glUniform4fv(param.obj, 1, (float *)array);
+                gl_success("glUniform4fv");
+            }
+        } else if (param.param->type == gs_shader_param_type::GS_SHADER_PARAM_MATRIX4X4) {
+            if (validate_param(param, sizeof(glm::mat4x4))) {
+                glUniformMatrix4fv(param.obj, 1, false, (float *)array);
+                gl_success("glUniformMatrix4fv");
+            }
+        } else if (param.param->type == gs_shader_param_type::GS_SHADER_PARAM_TEXTURE) {
+            glUniform1i(param.obj, param.param->texture_id);
+            gs_load_texture(param.param->texture, param.param->texture_id);
+        }
+    }
+}
+
 bool gs_program::assign_program_attrib(const shader_attrib &attrib)
 {
     GLint attrib_obj = glGetAttribLocation(d_ptr->obj, attrib.name.c_str());
@@ -175,3 +265,15 @@ bool gs_program::assign_program_params()
 
     return true;
 }
+
+program_param *gs_program::gs_effect_get_param_by_name(const char *name)
+{
+    for (int i = 0; i < d_ptr->params.size(); ++i) {
+        program_param *p = &d_ptr->params[i];
+        if (p->param->name == name)
+            return p;
+    }
+
+    return nullptr;
+}
+

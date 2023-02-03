@@ -3,7 +3,10 @@
 #include "util/log.h"
 
 #include "gl-helpers.h"
-#include "gs_vertexbuffer.h"
+#include "gs_texture.h"
+#include "gs_program.h"
+
+#include <glm/mat4x4.hpp>
 
 #if defined __ANDROID__
 struct gl_platform
@@ -52,6 +55,26 @@ struct gs_device_private
     std::unique_ptr<gl_platform> plat{};
 
     GLuint empty_vao{};
+
+    std::weak_ptr<gs_texture> cur_render_target{};
+    std::weak_ptr<gs_zstencil_buffer> cur_zstencil_buffer{};
+    std::weak_ptr<fbo_info> cur_fbo{};
+
+    std::vector<std::weak_ptr<gs_texture>> cur_textures;
+
+    std::weak_ptr<gs_vertexbuffer> cur_vertex_buffer{};
+    std::weak_ptr<gs_indexbuffer> cur_index_buffer{};
+
+    gs_cull_mode cur_cull_mode{};
+    struct gs_rect cur_viewport{};
+
+    glm::mat4x4 cur_proj{};
+    glm::mat4x4 cur_view{};
+    glm::mat4x4 cur_viewproj{};
+
+    gs_device_private() {
+        cur_textures.resize(GS_MAX_TEXTURES);
+    }
 };
 
 gs_device::gs_device()
@@ -130,6 +153,216 @@ void gs_device::device_blend_function_separate(gs_blend_type src_c, gs_blend_typ
     glBlendFuncSeparate(gl_src_c, gl_dst_c, gl_src_a, gl_dst_a);
     if (!gl_success("glBlendFuncSeparate"))
         blog(LOG_ERROR, "device_blend_function_separate (GL) failed");
+}
+
+
+bool gs_device::set_current_fbo(std::shared_ptr<fbo_info> fbo)
+{
+    auto cur_fbo = d_ptr->cur_fbo.lock();
+    if (cur_fbo != fbo) {
+        GLuint fbo_obj = fbo ? fbo->fbo : 0;
+        if (!gl_bind_framebuffer(GL_FRAMEBUFFER, fbo_obj))
+            return false;
+
+        if (cur_fbo) {
+            cur_fbo->cur_render_target.reset();
+            cur_fbo->cur_zstencil_buffer.reset();
+        }
+    }
+
+    cur_fbo = fbo;
+    return true;
+}
+
+uint32_t gs_device::get_target_height()
+{
+    auto render_target = d_ptr->cur_render_target.lock();
+    if (!render_target) {
+        blog(LOG_DEBUG, "get_target_height (GL): no cur target");
+        return 0;
+    }
+
+    return render_target->gs_texture_get_height();
+}
+
+bool gs_device::can_render(uint32_t num_verts)
+{
+    if (!d_ptr->cur_vertex_buffer.lock() && (num_verts == 0)) {
+        blog(LOG_ERROR, "No vertex buffer specified");
+        return false;
+    }
+
+    if (!d_ptr->cur_render_target.lock()) {
+        blog(LOG_ERROR, "No active swap chain or render target");
+        return false;
+    }
+
+    return true;
+}
+
+bool gs_device::gs_device_set_render_target(std::shared_ptr<gs_texture> tex, std::shared_ptr<gs_zstencil_buffer> zs)
+{
+    auto cur_render_target = d_ptr->cur_render_target.lock();
+    auto cur_zstencil_buffer = d_ptr->cur_zstencil_buffer.lock();
+
+    if (cur_render_target == tex && cur_zstencil_buffer == zs)
+        return true;
+
+    d_ptr->cur_render_target = tex;
+    d_ptr->cur_zstencil_buffer = zs;
+
+    if (!tex) {
+        return set_current_fbo(nullptr);
+    }
+
+    auto fbo = tex->get_fbo();
+    if (!fbo)
+        return false;
+
+    set_current_fbo(fbo);
+
+    if (!fbo->attach_rendertarget(tex))
+        return false;
+    if (!fbo->attach_zstencil(zs))
+        return false;
+
+    return true;
+}
+
+void gs_device::gs_device_set_cull_mode(gs_cull_mode mode)
+{
+    if (d_ptr->cur_cull_mode == mode)
+        return;
+
+    if (d_ptr->cur_cull_mode == gs_cull_mode::GS_NEITHER)
+        gl_enable(GL_CULL_FACE);
+
+    d_ptr->cur_cull_mode = mode;
+
+    if (mode == gs_cull_mode::GS_BACK)
+        gl_cull_face(GL_BACK);
+    else if (mode == gs_cull_mode::GS_FRONT)
+        gl_cull_face(GL_FRONT);
+    else
+        gl_disable(GL_CULL_FACE);
+}
+
+void gs_device::gs_device_ortho(float left, float right, float top, float bottom, float znear, float zfar)
+{
+    auto &dst = d_ptr->cur_proj;
+    memset(&dst, 0, sizeof(glm::mat4x4));
+
+    float rml = right - left;
+    float bmt = bottom - top;
+    float fmn = zfar - znear;
+
+    dst[0][0] = 2.0f / rml;
+    dst[3][0] = (left + right) / -rml;
+
+    dst[1][1] = 2.0f / -bmt;
+    dst[3][1] = (bottom + top) / bmt;
+
+    dst[2][2] = -2.0f / fmn;
+    dst[3][2] = (zfar + znear) / -fmn;
+
+    dst[3][3] = 1.0f;
+}
+
+void gs_device::gs_device_set_viewport(int x, int y, int width, int height)
+{
+    /* GL uses bottom-up coordinates for viewports.  We want top-down */
+    uint32_t base_height = get_target_height();
+    int gl_y = 0;
+
+    if (base_height)
+        gl_y = base_height - y - height;
+
+    glViewport(x, gl_y, width, height);
+    if (!gl_success("glViewport"))
+        blog(LOG_ERROR, "device_set_viewport (GL) failed");
+
+    d_ptr->cur_viewport.x = x;
+    d_ptr->cur_viewport.y = y;
+    d_ptr->cur_viewport.cx = width;
+    d_ptr->cur_viewport.cy = height;
+}
+
+void gs_device::gs_device_load_vertexbuffer(std::shared_ptr<gs_vertexbuffer> vb)
+{
+    d_ptr->cur_vertex_buffer = vb;
+}
+
+void gs_device::gs_device_load_indexbuffer(std::shared_ptr<gs_indexbuffer> ib)
+{
+    d_ptr->cur_index_buffer = ib;
+}
+
+void gs_device::gs_device_draw(std::shared_ptr<gs_program> program, gs_draw_mode draw_mode, uint32_t start_vert, uint32_t num_verts)
+{
+    auto vb = d_ptr->cur_vertex_buffer.lock();
+    auto ib = d_ptr->cur_index_buffer.lock();
+    if (!vb)
+        return;
+
+    GLenum topology = convert_gs_topology(draw_mode);
+
+//    if (!can_render(num_verts))
+//        goto fail;
+
+//    if (effect)
+//        gs_effect_update_params(effect);
+
+//    program = get_shader_program(device);
+//    if (!program)
+//        goto fail;
+
+//    if (vb)
+//        load_vb_buffers(program, vb, ib);
+//    else
+//        gl_bind_vertex_array(device->empty_vao);
+
+//    if (program != device->cur_program && device->cur_program) {
+//        glUseProgram(0);
+//        gl_success("glUseProgram (zero)");
+//    }
+
+//    if (program != device->cur_program) {
+//        device->cur_program = program;
+
+//        glUseProgram(program->obj);
+//        if (!gl_success("glUseProgram"))
+//            goto fail;
+//    }
+
+//    update_viewproj_matrix(device);
+
+//    program_update_params(program);
+
+//    if (ib) {
+//        if (num_verts == 0)
+//            num_verts = (uint32_t)device->cur_index_buffer->num;
+//        glDrawElements(topology, num_verts, ib->gl_type,
+//                       (const GLvoid *)(start_vert * ib->width));
+//        if (!gl_success("glDrawElements"))
+//            goto fail;
+
+//    } else {
+//        if (num_verts == 0)
+//            num_verts = (uint32_t)device->cur_vertex_buffer->num;
+//        glDrawArrays(topology, start_vert, num_verts);
+//        if (!gl_success("glDrawArrays"))
+//            goto fail;
+//    }
+
+//    return;
+
+//fail:
+//    blog(LOG_ERROR, "device_draw (GL) failed");
+}
+
+void gs_device::gs_device_load_texture(std::weak_ptr<gs_texture> tex, int unit)
+{
+
 }
 
 #if defined __ANDROID__
@@ -253,8 +486,8 @@ static bool gl_register_dummy_window_class(void)
 static inline HWND gl_create_dummy_window(void)
 {
     HWND hwnd = CreateWindowExA(0, dummy_window_class, "Dummy GL Window",
-                    WS_POPUP, 0, 0, 2, 2, NULL, NULL,
-                    GetModuleHandle(NULL), NULL);
+                                WS_POPUP, 0, 0, 2, 2, NULL, NULL,
+                                GetModuleHandle(NULL), NULL);
     if (!hwnd)
         blog(LOG_ERROR, "Could not create dummy context window");
 
@@ -273,7 +506,7 @@ static inline void init_dummy_pixel_format(PIXELFORMATDESCRIPTOR *pfd)
     pfd->cStencilBits = 8;
     pfd->iLayerType = PFD_MAIN_PLANE;
     pfd->dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL |
-               PFD_DOUBLEBUFFER;
+            PFD_DOUBLEBUFFER;
 }
 
 static inline HGLRC gl_init_basic_context(HDC hdc)
@@ -386,9 +619,9 @@ static bool register_dummy_class(void)
 static bool create_dummy_window(gl_platform *plat)
 {
     plat->window.hwnd = CreateWindowExA(0, DUMMY_WNDCLASS,
-                        "OpenGL Dummy Window", WS_POPUP, 0,
-                        0, 1, 1, NULL, NULL,
-                        GetModuleHandleW(NULL), NULL);
+                                        "OpenGL Dummy Window", WS_POPUP, 0,
+                                        0, 1, 1, NULL, NULL,
+                                        GetModuleHandleW(NULL), NULL);
     if (!plat->window.hwnd) {
         blog(LOG_ERROR, "Failed to create dummy GL window, %lu",
              GetLastError());
@@ -450,7 +683,7 @@ static int gl_choose_pixel_format(HDC hdc, const gs_init_data *info)
 
     if (!color_bits) {
         blog(LOG_ERROR, "gl_init_pixel_format: color format not "
-                "supported");
+                        "supported");
         return false;
     }
 
@@ -467,7 +700,7 @@ static int gl_choose_pixel_format(HDC hdc, const gs_init_data *info)
     };
 
     success = wglChoosePixelFormatARB(hdc, attribs, NULL, 1, &format,
-                      &num_formats);
+                                      &num_formats);
     if (!success || !num_formats) {
         blog(LOG_ERROR, "wglChoosePixelFormatARB failed, %lu",
              GetLastError());
@@ -526,7 +759,7 @@ std::unique_ptr<gl_platform> gs_device::gl_platform_create()
         return nullptr;
 
     if (!register_dummy_class())
-            return nullptr;
+        return nullptr;
 
     auto plat = std::make_unique<gl_platform>();
     if (!create_dummy_window(plat.get()))

@@ -1,8 +1,6 @@
 #include "shaders.h"
 
 const char *default_vertex_shader_str = R"(
-#version 150
-
 const bool obs_glsl_compile = true;
 
 uniform mat4x4 ViewProj;
@@ -11,10 +9,6 @@ in vec4 _input_attrib0;
 in vec2 _input_attrib1;
 
 out vec2 _vertex_shader_attrib0;
-
-out gl_PerVertex {
-    vec4 gl_Position;
-};
 
 struct VertInOut {
     vec4 pos;
@@ -50,8 +44,6 @@ void main(void)
 )";
 
 const char *default_pixel_shader_str = R"(
-#version 150
-
 const bool obs_glsl_compile = true;
 
 uniform sampler2D image;

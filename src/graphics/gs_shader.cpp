@@ -68,7 +68,13 @@ bool gs_shader::gs_shader_init(const gs_shader_info &info)
     if (!gl_success("glCreateShader") || !d_ptr->obj)
         return false;
 
-    glShaderSource(d_ptr->obj, 1, (const GLchar **)&info.shader,
+#if defined WIN32
+    std::string shader_str = "#version 150\n" + info.shader;
+#else
+    std::string shader_str = "#version 300 es\n" + info.shader;
+#endif
+    auto str = shader_str.data();
+    glShaderSource(d_ptr->obj, 1, (const GLchar **)&str,
                    0);
     if (!gl_success("glShaderSource"))
         return false;

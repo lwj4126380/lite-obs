@@ -4,8 +4,13 @@
 #include <vector>
 
 #include "gs_subsystem_info.h"
+#include <glm/vec4.hpp>
 
 struct graphics_subsystem_private;
+class gs_device;
+class gs_texture;
+class gs_program;
+struct gs_zstencil_buffer;
 class graphics_subsystem
 {
 public:
@@ -14,6 +19,9 @@ public:
 
     int gs_create();
     int gs_effect_init();
+
+    std::shared_ptr<gs_program> gs_get_effect_by_name(const char *name);
+    void gs_draw_sprite(std::shared_ptr<gs_texture> tex, uint32_t flip, uint32_t width, uint32_t height);
 
 private:
     bool graphics_init();
@@ -24,13 +32,20 @@ public:
 };
 
 bool gs_valid(const char *f);
+graphics_subsystem *gs_graphics_subsystem();
 
 void gs_enter_contex(std::unique_ptr<graphics_subsystem> &graphics);
 void gs_leave_context();
 
+void gs_enable_depth_test(bool enable);
+void gs_set_cull_mode(gs_cull_mode mode);
+void gs_ortho(float left, float right, float top, float bottom, float znear, float zfar);
+void gs_set_viewport(int x, int y, int width, int height);
+void gs_clear(uint32_t clear_flags, glm::vec4 *color, float depth, uint8_t stencil);
+void gs_set_render_size(uint32_t width, uint32_t height);
+void gs_set_render_target(std::shared_ptr<gs_texture> tex, std::shared_ptr<gs_zstencil_buffer> zs);
 
-
-
+void gs_load_texture(std::weak_ptr<gs_texture> tex, int unit);
 
 static inline uint32_t gs_get_format_bpp(gs_color_format format)
 {

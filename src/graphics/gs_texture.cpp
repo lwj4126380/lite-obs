@@ -1,23 +1,42 @@
 #include "gs_texture.h"
-#include "gl-helpers.h"
 #include "graphics.h"
 
-struct gs_zstencil_buffer {
-    GLuint buffer{};
-    GLuint attachment{};
-    GLenum format{};
-};
+bool fbo_info::attach_rendertarget(std::shared_ptr<gs_texture> tex) {
+    if (cur_render_target.lock() == tex)
+        return true;
 
-struct fbo_info {
-    GLuint fbo{};
-    uint32_t width{};
-    uint32_t height{};
-    gs_color_format format{};
+    cur_render_target = tex;
 
-    std::shared_ptr<gs_texture> cur_render_target{};
-    int cur_render_side{};
-    std::unique_ptr<gs_zstencil_buffer> cur_zstencil_buffer{};
-};
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex->gs_texture_obj(), 0);
+    return gl_success("glFramebufferTexture2D");
+}
+
+bool fbo_info::attach_zstencil(std::shared_ptr<gs_zstencil_buffer> zs)
+{
+    GLuint zsbuffer = 0;
+    GLenum zs_attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+
+    if (cur_zstencil_buffer.lock() == zs)
+        return true;
+
+    cur_zstencil_buffer = zs;
+
+    if (zs) {
+        zsbuffer = zs->buffer;
+        zs_attachment = zs->attachment;
+    }
+
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, zs_attachment, GL_RENDERBUFFER, zsbuffer);
+    if (!gl_success("glFramebufferRenderbuffer"))
+        return false;
+
+    return true;
+}
+
+fbo_info::~fbo_info() {
+    glDeleteFramebuffers(1, &fbo);
+    gl_success("glDeleteFramebuffers");
+}
 
 struct gs_texture_base {
     gs_color_format format{};
@@ -32,7 +51,7 @@ struct gs_texture_base {
     bool is_dummy{};
     bool gen_mipmaps{};
 
-    std::unique_ptr<fbo_info> fbo{};
+    std::shared_ptr<fbo_info> fbo{};
 };
 
 struct gs_texture_private
@@ -51,15 +70,6 @@ gs_texture::gs_texture()
     d_ptr = std::make_unique<gs_texture_private>();
 }
 
-static inline void fbo_info_destroy(std::unique_ptr<fbo_info> &fbo)
-{
-    if (fbo) {
-        glDeleteFramebuffers(1, &fbo->fbo);
-        gl_success("glDeleteFramebuffers");
-        fbo.reset();
-    }
-}
-
 gs_texture::~gs_texture()
 {
     if (!d_ptr->base.is_dummy && d_ptr->base.is_dynamic && d_ptr->unpack_buffer)
@@ -67,9 +77,6 @@ gs_texture::~gs_texture()
 
     if (d_ptr->base.texture)
         gl_delete_textures(1, &d_ptr->base.texture);
-
-    if (d_ptr->base.fbo)
-        fbo_info_destroy(d_ptr->base.fbo);
 }
 
 bool gs_texture::create(uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags)
@@ -199,6 +206,38 @@ bool gs_texture::gs_texture_is_render_target()
     return d_ptr->base.is_render_target;
 }
 
+std::shared_ptr<fbo_info> gs_texture::get_fbo()
+{
+    uint32_t width, height;
+    if (!get_tex_dimensions( &width, &height))
+        return nullptr;
+
+    if (d_ptr->base.fbo && d_ptr->base.fbo->width == width &&
+            d_ptr->base.fbo->height == height && d_ptr->base.fbo->format == d_ptr->base.format)
+        return d_ptr->base.fbo;
+
+    GLuint fbo;
+    glGenFramebuffers(1, &fbo);
+    if (!gl_success("glGenFramebuffers"))
+        return nullptr;
+
+    d_ptr->base.fbo = std::make_shared<fbo_info>();
+
+    d_ptr->base.fbo->fbo = fbo;
+    d_ptr->base.fbo->width = width;
+    d_ptr->base.fbo->height = height;
+    d_ptr->base.fbo->format = d_ptr->base.format;
+    d_ptr->base.fbo->cur_render_target.reset();
+    d_ptr->base.fbo->cur_zstencil_buffer.reset();
+
+    return d_ptr->base.fbo;
+}
+
+GLuint gs_texture::gs_texture_obj()
+{
+    return d_ptr->base.texture;
+}
+
 bool gs_texture::upload_texture_2d(const uint8_t **data)
 {
     uint32_t row_size = d_ptr->width * gs_get_format_bpp(d_ptr->base.format);
@@ -225,6 +264,13 @@ bool gs_texture::upload_texture_2d(const uint8_t **data)
         success = false;
 
     return success;
+}
+
+bool gs_texture::get_tex_dimensions(uint32_t *width, uint32_t *height)
+{
+    *width = d_ptr->width;
+    *height = d_ptr->height;
+    return true;
 }
 
 bool gs_texture::create_pixel_unpack_buffer()
@@ -298,27 +344,4 @@ std::shared_ptr<gs_texture> gs_texture_create(uint32_t width, uint32_t height, g
     blog(LOG_DEBUG, "gs_texture_create: success.");
 
     return tex;
-}
-
-bool gs_texture::gs_set_target(int side, std::shared_ptr<gs_zstencil_buffer> zs)
-{
-    return true;
-}
-
-void gs_set_render_target(std::shared_ptr<gs_texture> tex, std::shared_ptr<gs_zstencil_buffer> zs)
-{
-    if (tex) {
-        if (!tex->gs_texture_is_render_target()) {
-            blog(LOG_ERROR, "Texture is not a render target");
-            goto fail;
-        }
-    }
-
-    if (!tex->gs_set_target(0, zs))
-        goto fail;
-
-    return;
-
-fail:
-    blog(LOG_ERROR, "device_set_render_target (GL) failed");
 }

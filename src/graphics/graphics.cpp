@@ -15,14 +15,14 @@
 
 struct graphics_subsystem_private
 {
-    std::unique_ptr<gs_device> device{};
+    std::shared_ptr<gs_device> device{};
 
     std::list<glm::mat4x4> matrix_stack{};
     size_t cur_matrix{};
 
     glm::mat4x4 projection;
 
-    std::unique_ptr<gs_vertexbuffer> sprite_buffer{};
+    std::shared_ptr<gs_vertexbuffer> sprite_buffer{};
 
     std::recursive_mutex mutex;
     std::mutex effect_mutex;
@@ -67,7 +67,7 @@ graphics_subsystem::~graphics_subsystem()
 
 int graphics_subsystem::gs_create()
 {
-    auto device = std::make_unique<gs_device>();
+    auto device = std::make_shared<gs_device>();
     int errcode = device->device_create();
     if (errcode != GS_SUCCESS)
         return errcode;
@@ -110,6 +110,35 @@ int graphics_subsystem::gs_effect_init()
     return GS_SUCCESS;
 }
 
+std::shared_ptr<gs_program> graphics_subsystem::gs_get_effect_by_name(const char *name)
+{
+    if (d_ptr->effects.contains(name))
+        return d_ptr->effects.at(name);
+
+    return nullptr;
+}
+
+void graphics_subsystem::gs_draw_sprite(std::shared_ptr<gs_texture> tex, uint32_t flip, uint32_t width, uint32_t height)
+{
+    if (!tex && (!width || !height)) {
+        blog(LOG_ERROR, "A sprite cannot be drawn without "
+                        "a width/height");
+        return;
+    }
+
+    float fcx = width ? (float)width : (float)tex->gs_texture_get_width();
+    float fcy = height ? (float)height : (float)tex->gs_texture_get_height();
+
+    auto data = d_ptr->sprite_buffer->gs_vertexbuffer_get_data();
+    data->build_sprite_norm(fcx, fcy, flip);
+    d_ptr->sprite_buffer->gs_vertexbuffer_flush();
+
+    d_ptr->device->gs_device_load_vertexbuffer(d_ptr->sprite_buffer);
+    d_ptr->device->gs_device_load_indexbuffer(nullptr);
+
+    //gs_draw(GS_TRISTRIP, 0, 0);
+}
+
 bool graphics_subsystem::graphics_init()
 {
     glm::mat4x4 top_mat(1);
@@ -130,7 +159,7 @@ bool graphics_subsystem::graphics_init()
 
 bool graphics_subsystem::graphics_init_sprite_vb()
 {
-    auto vb = std::make_unique<gs_vertexbuffer>();
+    auto vb = std::make_shared<gs_vertexbuffer>();
     if (!vb->gs_vertexbuffer_init_sprite())
         return false;
 
@@ -167,4 +196,104 @@ void gs_leave_context()
             thread_graphics = nullptr;
         }
     }
+}
+
+graphics_subsystem *gs_graphics_subsystem()
+{
+    return thread_graphics;
+}
+
+void gs_set_render_target(std::shared_ptr<gs_texture> tex, std::shared_ptr<gs_zstencil_buffer> zs)
+{
+    if (!gs_valid("gs_set_render_target"))
+        return;
+
+    if (!thread_graphics->d_ptr->device->gs_device_set_render_target(tex, zs))
+        blog(LOG_ERROR, "device_set_render_target (GL) failed");
+}
+
+void gs_enable_depth_test(bool enable)
+{
+    if (!gs_valid("gs_enable_depth_test"))
+        return;
+
+    if (enable)
+        gl_enable(GL_DEPTH_TEST);
+    else
+        gl_disable(GL_DEPTH_TEST);
+}
+
+void gs_set_cull_mode(gs_cull_mode mode)
+{
+    if (!gs_valid("gs_set_cull_mode"))
+        return;
+
+    thread_graphics->d_ptr->device->gs_device_set_cull_mode(mode);
+}
+
+void gs_ortho(float left, float right, float top, float bottom, float znear, float zfar)
+{
+    if (!gs_valid("gs_ortho"))
+        return;
+
+    thread_graphics->d_ptr->device->gs_device_ortho(left, right, top, bottom, znear, zfar);
+}
+
+void gs_set_viewport(int x, int y, int width, int height)
+{
+    if (!gs_valid("gs_set_view_port"))
+        return;
+
+    thread_graphics->d_ptr->device->gs_device_set_viewport(x, y, width, height);
+}
+
+void gs_clear(uint32_t clear_flags, glm::vec4 *color, float depth, uint8_t stencil)
+{
+    if (!gs_valid("gs_clear"))
+        return;
+
+    GLbitfield gl_flags = 0;
+
+    if (clear_flags & GS_CLEAR_COLOR) {
+        glClearColor(color->x, color->y, color->z, color->w);
+        gl_flags |= GL_COLOR_BUFFER_BIT;
+    }
+
+    if (clear_flags & GS_CLEAR_DEPTH) {
+#if defined __ANDROID__
+        glClearDepthf(depth);
+#else
+        glClearDepth(depth);
+#endif
+        gl_flags |= GL_DEPTH_BUFFER_BIT;
+    }
+
+    if (clear_flags & GS_CLEAR_STENCIL) {
+        glClearStencil(stencil);
+        gl_flags |= GL_STENCIL_BUFFER_BIT;
+    }
+
+    glClear(gl_flags);
+    if (!gl_success("glClear"))
+        blog(LOG_ERROR, "device_clear (GL) failed");
+}
+
+void gs_set_render_size(uint32_t width, uint32_t height)
+{
+    if (!gs_valid("gs_set_render_size"))
+        return;
+
+    gs_enable_depth_test(false);
+    gs_set_cull_mode(gs_cull_mode::GS_NEITHER);
+
+    gs_ortho(0.0f, (float)width, 0.0f, (float)height, -100.0f, 100.0f);
+    gs_set_viewport(0, 0, width, height);
+}
+
+void gs_load_texture(std::weak_ptr<gs_texture> tex, int unit)
+{
+    if (!gs_valid("gs_load_texture"))
+        return;
+
+    thread_graphics->d_ptr->device->gs_device_load_texture(tex, unit);
 }

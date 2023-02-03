@@ -14,7 +14,7 @@ struct gs_vertexbuffer_private
     
     size_t num{};
     bool dynamic{};
-    std::unique_ptr<gs_vb_data> data{};
+    std::shared_ptr<gs_vb_data> data{};
 };
 
 gs_vertexbuffer::gs_vertexbuffer()
@@ -38,6 +38,8 @@ gs_vertexbuffer::~gs_vertexbuffer()
 
     if (d_ptr->vao)
         gl_delete_vertex_arrays(1, &d_ptr->vao);
+
+    blog(LOG_DEBUG, "~gs_vertexbuffer ----> destroy.");
 }
 
 bool gs_vertexbuffer::create_buffers()
@@ -46,20 +48,20 @@ bool gs_vertexbuffer::create_buffers()
     size_t i;
     
     if (!gl_create_buffer(GL_ARRAY_BUFFER, &d_ptr->vertex_buffer,
-                          d_ptr->data->num * sizeof(glm::vec3),
+                          d_ptr->data->num * sizeof(glm::vec4),
                           d_ptr->data->points.data(), usage))
         return false;
     
     if (!d_ptr->data->normals.empty()) {
         if (!gl_create_buffer(GL_ARRAY_BUFFER, &d_ptr->normal_buffer,
-                              d_ptr->data->num * sizeof(glm::vec3),
+                              d_ptr->data->num * sizeof(glm::vec4),
                               d_ptr->data->normals.data(), usage))
             return false;
     }
     
     if (!d_ptr->data->tangents.empty()) {
         if (!gl_create_buffer(GL_ARRAY_BUFFER, &d_ptr->tangent_buffer,
-                              d_ptr->data->num * sizeof(glm::vec3),
+                              d_ptr->data->num * sizeof(glm::vec4),
                               d_ptr->data->tangents.data(), usage))
             return false;
     }
@@ -99,7 +101,7 @@ bool gs_vertexbuffer::create_buffers()
 
 bool gs_vertexbuffer::gs_vertexbuffer_init_sprite()
 {
-    d_ptr->data = std::make_unique<gs_vb_data>();
+    d_ptr->data = std::make_shared<gs_vb_data>();
     d_ptr->data->num = 4;
     d_ptr->data->points.resize(4);
     d_ptr->data->num_tex = 1;
@@ -112,6 +114,11 @@ bool gs_vertexbuffer::gs_vertexbuffer_init_sprite()
     d_ptr->dynamic = true;
 
     return create_buffers();
+}
+
+std::shared_ptr<gs_vb_data> gs_vertexbuffer::gs_vertexbuffer_get_data()
+{
+    return d_ptr->data;
 }
 
 void gs_vertexbuffer::gs_vertexbuffer_flush()
@@ -138,21 +145,21 @@ void gs_vertexbuffer::gs_vertexbuffer_flush_internal(const gs_vb_data *data)
     if (data->points.size()) {
         if (!update_buffer(GL_ARRAY_BUFFER, d_ptr->vertex_buffer,
                            data->points.data(),
-                           data->num * sizeof(glm::vec3)))
+                           data->num * sizeof(glm::vec4)))
             goto failed;
     }
 
     if (d_ptr->normal_buffer && data->normals.size()) {
         if (!update_buffer(GL_ARRAY_BUFFER, d_ptr->normal_buffer,
                            data->normals.data(),
-                           data->num * sizeof(glm::vec3)))
+                           data->num * sizeof(glm::vec4)))
             goto failed;
     }
 
     if (d_ptr->tangent_buffer && data->tangents.size()) {
         if (!update_buffer(GL_ARRAY_BUFFER, d_ptr->tangent_buffer,
                            data->tangents.data(),
-                           data->num * sizeof(glm::vec3)))
+                           data->num * sizeof(glm::vec4)))
             goto failed;
     }
 

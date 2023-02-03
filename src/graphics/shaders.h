@@ -218,7 +218,7 @@ struct gl_parser_shader_sampler
 struct gs_shader_info
 {
     gs_shader_type type{};
-    const char *shader{};
+    std::string shader{};
     std::vector<gl_parser_shader_var> parser_shader_vars{};
     std::vector<gl_parser_attrib> parser_attribs{};
     std::vector<gl_parser_shader_sampler> parser_shader_samplers;

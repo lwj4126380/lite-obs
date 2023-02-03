@@ -22,6 +22,11 @@
     (1 << 4) /**<< do not pass buffer ownership when
                  *    creating a vertex/index buffer */
 
+#define GS_FLIP_U (1 << 0)
+#define GS_FLIP_V (1 << 1)
+
+#define GS_MAX_TEXTURES 8
+
 enum class gs_blend_type {
     GS_BLEND_ZERO,
     GS_BLEND_ONE,
@@ -176,4 +181,47 @@ enum class gs_zstencil_format {
     GS_Z24_S8,
     GS_Z32F,
     GS_Z32F_S8X24,
+};
+
+#define GS_CLEAR_COLOR (1 << 0)
+#define GS_CLEAR_DEPTH (1 << 1)
+#define GS_CLEAR_STENCIL (1 << 2)
+
+enum class gs_cull_mode {
+    GS_BACK,
+    GS_FRONT,
+    GS_NEITHER,
+};
+
+enum class gs_draw_mode {
+    GS_POINTS,
+    GS_LINES,
+    GS_LINESTRIP,
+    GS_TRIS,
+    GS_TRISTRIP,
+};
+
+static inline GLenum convert_gs_topology(gs_draw_mode mode)
+{
+    switch (mode) {
+    case gs_draw_mode::GS_POINTS:
+        return GL_POINTS;
+    case gs_draw_mode::GS_LINES:
+        return GL_LINES;
+    case gs_draw_mode::GS_LINESTRIP:
+        return GL_LINE_STRIP;
+    case gs_draw_mode::GS_TRIS:
+        return GL_TRIANGLES;
+    case gs_draw_mode::GS_TRISTRIP:
+        return GL_TRIANGLE_STRIP;
+    }
+
+    return GL_POINTS;
+}
+
+struct gs_rect {
+    int x;
+    int y;
+    int cx;
+    int cy;
 };

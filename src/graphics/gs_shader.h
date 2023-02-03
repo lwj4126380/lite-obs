@@ -21,17 +21,17 @@ struct shader_attrib {
     attrib_type type{};
 };
 
+class gs_texture;
 struct gs_shader_param {
     gs_shader_param_type type{};
 
     std::string name{};
-    //    gs_shader_t *shader;
-    //    gs_samplerstate_t *next_sampler;
+
     GLint texture_id{};
     size_t sampler_id{};
     int array_count{};
 
-    //    struct gs_texture *texture;
+    std::weak_ptr<gs_texture> texture;
 
     std::vector<uint8_t> cur_value{};
     std::vector<uint8_t> def_value{};
@@ -56,7 +56,7 @@ public:
     gs_shader_type type();
 
     const std::vector<shader_attrib> &gs_shader_attribs() const;
-    const std::vector<std::shared_ptr<gs_shader_param>> &gs_shader_params() const;
+    const std::vector<std::shared_ptr<gs_shader_param>> &gs_shader_params() const;   
 
 private:
     std::string gl_get_shader_info(GLuint shader);

@@ -5,6 +5,7 @@
 
 #include "graphics/graphics.h"
 #include "graphics/gs_texture.h"
+#include "graphics/gs_program.h"
 
 lite_obs obs;
 
@@ -72,6 +73,8 @@ int lite_obs::obs_reset_video(obs_video_info *ovi)
     return obs_init_graphics(ovi);
 }
 #include <thread>
+#include <QFile>
+#include <QImage>
 int lite_obs::obs_init_graphics(obs_video_info *ovi)
 {
     std::thread th([](){
@@ -86,15 +89,58 @@ int lite_obs::obs_init_graphics(obs_video_info *ovi)
         gs_enter_contex(gl);
 
         gl->gs_effect_init();
-        {
-        uint8_t transparent_tex_data[2 * 2 * 4] = {0};
-        const uint8_t *transparent_tex = transparent_tex_data;
-        auto tex = gs_texture_create(2, 2, gs_color_format::GS_RGBA, 1, &transparent_tex, GS_DYNAMIC);
-        uint8_t *ptr;
-        uint32_t linesize_out;
-        blog(LOG_DEBUG, "++++++++++ %d", tex->gs_texture_map(&ptr, &linesize_out));
-        tex->gs_texture_unmap();
-        }
+//        {
+//            uint8_t transparent_tex_data[2 * 2 * 4] = {0};
+//            const uint8_t *transparent_tex = transparent_tex_data;
+//            auto tex = gs_texture_create(2, 2, gs_color_format::GS_RGBA, 1, &transparent_tex, GS_DYNAMIC);
+//            uint8_t *ptr;
+//            uint32_t linesize_out;
+//            blog(LOG_DEBUG, "++++++++++ %d", tex->gs_texture_map(&ptr, &linesize_out));
+//            tex->gs_texture_unmap();
+//        }
+
+        QImage image("D:/test.jpg");
+        image = image.convertToFormat(QImage::Format_RGBA8888);
+
+        auto bits = image.bits();
+        auto img_tex = gs_texture_create(image.width(), image.height(), gs_color_format::GS_RGBA, 1, (const uint8_t **)&bits, 0);
+
+        auto tex = gs_texture_create(640, 480, gs_color_format::GS_RGBA, 1, nullptr, GS_RENDER_TARGET);
+        gs_set_render_target(tex, nullptr);
+
+
+        glm::vec4 clear_color{0.0f, 0.0f, 1.0f, 0.0f};
+
+        gs_clear(GS_CLEAR_COLOR, &clear_color, 1.0f, 0);
+
+        gs_set_render_size(640, 480);
+
+        auto program = gl->gs_get_effect_by_name("default_effect");
+        program->gs_effect_set_texture("image", img_tex);
+
+        gl->gs_draw_sprite(img_tex, 0, 1005, 792);
+
+        glFlush();
+
+
+//        char *image_data = (char*)malloc(640 * 480 * 4);
+//        memset(image_data, 0, 640 * 480 * 4);
+//        glReadBuffer(GL_COLOR_ATTACHMENT0);
+//        glReadPixels(0, 0, 640, 480, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
+
+
+
+//        QFile f("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/files/500.rgba");
+//        f.open(QFile::ReadWrite);
+//        f.write(image_data, 640*480*4);
+//        f.close();
+
+//        free(image_data);
+
+
+        tex.reset();
+        img_tex.reset();
+
         gs_leave_context();
     });
 
