@@ -5,6 +5,7 @@
 
 #include "gs_subsystem_info.h"
 #include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
 
 struct graphics_subsystem_private;
 class gs_device;
@@ -46,6 +47,8 @@ void gs_set_render_size(uint32_t width, uint32_t height);
 void gs_set_render_target(std::shared_ptr<gs_texture> tex, std::shared_ptr<gs_zstencil_buffer> zs);
 
 void gs_load_texture(std::weak_ptr<gs_texture> tex, int unit);
+
+void gs_matrix_get(glm::mat4x4 &matrix);
 
 static inline uint32_t gs_get_format_bpp(gs_color_format format)
 {

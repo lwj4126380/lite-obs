@@ -2,14 +2,6 @@
 #include "shaders.h"
 #include "gl-helpers.h"
 
-struct gs_sampler_state {
-    GLint min_filter{};
-    GLint mag_filter{};
-    GLint address_u{};
-    GLint address_v{};
-    GLint address_w{};
-};
-
 struct gs_sampler_info {
     gs_sample_filter filter;
     gs_address_mode address_u;
@@ -144,6 +136,28 @@ const std::vector<shader_attrib> &gs_shader::gs_shader_attribs() const
 const std::vector<std::shared_ptr<gs_shader_param> > &gs_shader::gs_shader_params() const
 {
     return d_ptr->params;
+}
+
+std::shared_ptr<gs_shader_param> gs_shader::gs_shader_param_by_unit(int unit)
+{
+    for (int i = 0; i < d_ptr->params.size(); ++i) {
+        auto param = d_ptr->params[i];
+        if (param->type == gs_shader_param_type::GS_SHADER_PARAM_TEXTURE) {
+            if (param->texture_id == unit)
+                return param;
+        }
+    }
+
+    return nullptr;
+}
+
+void gs_shader::gs_shader_set_matrix4(const glm::mat4x4 &val)
+{
+    if (!d_ptr->viewproj)
+        return;
+
+    d_ptr->viewproj->cur_value.resize(sizeof(glm::mat4x4));
+    memcpy(d_ptr->viewproj->cur_value.data(), &val, sizeof(glm::mat4x4));
 }
 
 std::string gs_shader::gl_get_shader_info(GLuint shader)

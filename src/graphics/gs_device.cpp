@@ -5,6 +5,8 @@
 #include "gl-helpers.h"
 #include "gs_texture.h"
 #include "gs_program.h"
+#include "gs_shader.h"
+#include "gs_vertexbuffer.h"
 
 #include <glm/mat4x4.hpp>
 
@@ -61,19 +63,23 @@ struct gs_device_private
     std::weak_ptr<fbo_info> cur_fbo{};
 
     std::vector<std::weak_ptr<gs_texture>> cur_textures;
+    std::vector<std::weak_ptr<gs_sampler_state>> cur_samplers;
 
     std::weak_ptr<gs_vertexbuffer> cur_vertex_buffer{};
     std::weak_ptr<gs_indexbuffer> cur_index_buffer{};
 
+    std::weak_ptr<gs_program> cur_program{};
+
     gs_cull_mode cur_cull_mode{};
     struct gs_rect cur_viewport{};
 
-    glm::mat4x4 cur_proj{};
-    glm::mat4x4 cur_view{};
-    glm::mat4x4 cur_viewproj{};
+    glm::mat4x4 cur_proj{0};
+    glm::mat4x4 cur_view{0};
+    glm::mat4x4 cur_viewproj{0};
 
     gs_device_private() {
         cur_textures.resize(GS_MAX_TEXTURES);
+        cur_samplers.resize(GS_MAX_TEXTURES);
     }
 };
 
@@ -200,6 +206,37 @@ bool gs_device::can_render(uint32_t num_verts)
     return true;
 }
 
+void gs_device::update_viewproj_matrix()
+{
+    auto program = d_ptr->cur_program.lock();
+    if (!program)
+        return;
+
+    auto vs = program->gs_effect_vertex_shader();
+    glm::mat4x4 cur_proj{0};
+
+    gs_matrix_get(d_ptr->cur_view);
+    cur_proj = d_ptr->cur_proj;
+
+    if (d_ptr->cur_fbo.lock()) {
+        cur_proj[0][1] = -cur_proj[0][1];
+        cur_proj[1][1] = -cur_proj[1][1];
+        cur_proj[2][1] = -cur_proj[2][1];
+        cur_proj[3][1] = -cur_proj[3][1];
+
+        glFrontFace(GL_CW);
+    } else {
+        glFrontFace(GL_CCW);
+    }
+
+    gl_success("glFrontFace");
+
+    d_ptr->cur_viewproj = d_ptr->cur_view * cur_proj;
+    d_ptr->cur_viewproj = glm::transpose(d_ptr->cur_viewproj);
+
+    vs->gs_shader_set_matrix4(d_ptr->cur_viewproj);
+}
+
 bool gs_device::gs_device_set_render_target(std::shared_ptr<gs_texture> tex, std::shared_ptr<gs_zstencil_buffer> zs)
 {
     auto cur_render_target = d_ptr->cur_render_target.lock();
@@ -299,6 +336,7 @@ void gs_device::gs_device_load_indexbuffer(std::shared_ptr<gs_indexbuffer> ib)
 
 void gs_device::gs_device_draw(std::shared_ptr<gs_program> program, gs_draw_mode draw_mode, uint32_t start_vert, uint32_t num_verts)
 {
+    std::shared_ptr<gs_program> cur_program = d_ptr->cur_program.lock();
     auto vb = d_ptr->cur_vertex_buffer.lock();
     auto ib = d_ptr->cur_index_buffer.lock();
     if (!vb)
@@ -306,39 +344,41 @@ void gs_device::gs_device_draw(std::shared_ptr<gs_program> program, gs_draw_mode
 
     GLenum topology = convert_gs_topology(draw_mode);
 
-//    if (!can_render(num_verts))
-//        goto fail;
+    if (!can_render(num_verts))
+        goto fail;
 
-//    if (effect)
-//        gs_effect_update_params(effect);
+    if (vb) {
+        if (!gl_bind_vertex_array(vb->gs_vertexbuffer_vao()))
+            goto fail;
+        auto attribs = program->gs_effect_vertex_shader()->gs_shader_attribs();
+        auto s_attribs = program->gs_effect_attribs();
+        for (int i = 0; i < attribs.size(); ++i) {
+            vb->gs_load_vb_buffers(attribs[i].type, attribs[i].index, s_attribs[i]);
+        }
+        // todo indexbuffer
+        //        if (ib && !gl_bind_buffer(GL_ELEMENT_ARRAY_BUFFER, ib->buffer))
+        //            goto fail;
+    } else
+        gl_bind_vertex_array(d_ptr->empty_vao);
 
-//    program = get_shader_program(device);
-//    if (!program)
-//        goto fail;
+    if (program != cur_program && cur_program) {
+        glUseProgram(0);
+        gl_success("glUseProgram (zero)");
+    }
 
-//    if (vb)
-//        load_vb_buffers(program, vb, ib);
-//    else
-//        gl_bind_vertex_array(device->empty_vao);
+    if (program != cur_program) {
+        d_ptr->cur_program = program;
 
-//    if (program != device->cur_program && device->cur_program) {
-//        glUseProgram(0);
-//        gl_success("glUseProgram (zero)");
-//    }
+        glUseProgram(program->gs_effect_obj());
+        if (!gl_success("glUseProgram"))
+            goto fail;
+    }
 
-//    if (program != device->cur_program) {
-//        device->cur_program = program;
+    update_viewproj_matrix();
 
-//        glUseProgram(program->obj);
-//        if (!gl_success("glUseProgram"))
-//            goto fail;
-//    }
+    program->gs_effect_upload_parameters(true);
 
-//    update_viewproj_matrix(device);
-
-//    program_update_params(program);
-
-//    if (ib) {
+    if (ib) { // todo indexbuffer
 //        if (num_verts == 0)
 //            num_verts = (uint32_t)device->cur_index_buffer->num;
 //        glDrawElements(topology, num_verts, ib->gl_type,
@@ -346,23 +386,66 @@ void gs_device::gs_device_draw(std::shared_ptr<gs_program> program, gs_draw_mode
 //        if (!gl_success("glDrawElements"))
 //            goto fail;
 
-//    } else {
-//        if (num_verts == 0)
-//            num_verts = (uint32_t)device->cur_vertex_buffer->num;
-//        glDrawArrays(topology, start_vert, num_verts);
-//        if (!gl_success("glDrawArrays"))
-//            goto fail;
-//    }
+    } else {
+        if (num_verts == 0)
+            num_verts = (uint32_t)vb->gs_vertexbuffer_num();
+        glDrawArrays(topology, start_vert, num_verts);
+        if (!gl_success("glDrawArrays"))
+            goto fail;
+    }
 
-//    return;
+    return;
 
-//fail:
-//    blog(LOG_ERROR, "device_draw (GL) failed");
+fail:
+    blog(LOG_ERROR, "device_draw (GL) failed");
 }
 
-void gs_device::gs_device_load_texture(std::weak_ptr<gs_texture> tex, int unit)
+void gs_device::gs_device_load_texture(std::weak_ptr<gs_texture> p_tex, int unit)
 {
+    std::shared_ptr<gs_sampler_state> sampler;
+    std::shared_ptr<gs_program> program;
+    std::shared_ptr<gs_shader_param> param;
+    auto cur_tex = d_ptr->cur_textures[unit].lock();
+    auto tex = p_tex.lock();
+    if (cur_tex == tex)
+        return;
 
+    if (!gl_active_texture(GL_TEXTURE0 + unit))
+        goto fail;
+
+    /* the target for the previous text may not be the same as the
+         * next texture, so unbind the previous texture first to be safe */
+    if (cur_tex && (!tex || cur_tex->gs_texture_target() != tex->gs_texture_target()))
+        gl_bind_texture(cur_tex->gs_texture_target(), 0);
+
+    d_ptr->cur_textures[unit] = p_tex;
+
+    program = d_ptr->cur_program.lock();
+    if (!program)
+        return;
+
+    param = program->gs_effect_pixel_shader()->gs_shader_param_by_unit(unit);
+    if (!param)
+        return;
+
+    if (!tex)
+        return;
+
+    // texelFetch doesn't need a sampler
+    if (param->sampler_id != (size_t)-1)
+        sampler = d_ptr->cur_samplers[param->sampler_id].lock();
+    else
+        sampler = nullptr;
+
+    if (!gl_bind_texture(tex->gs_texture_target(), tex->gs_texture_obj()))
+        goto fail;
+    if (sampler && !tex->gs_texture_load_texture_sampler(sampler))
+        goto fail;
+
+    return;
+
+fail:
+    blog(LOG_ERROR, "device_load_texture (GL) failed");
 }
 
 #if defined __ANDROID__

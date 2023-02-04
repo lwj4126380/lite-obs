@@ -197,6 +197,26 @@ void gs_program::gs_effect_upload_parameters(bool change_only)
     }
 }
 
+std::shared_ptr<gs_shader> gs_program::gs_effect_vertex_shader()
+{
+    return d_ptr->vertex_shader;
+}
+
+std::shared_ptr<gs_shader> gs_program::gs_effect_pixel_shader()
+{
+    return d_ptr->pixel_shader;
+}
+
+GLuint gs_program::gs_effect_obj()
+{
+    return d_ptr->obj;
+}
+
+const std::vector<GLint> &gs_program::gs_effect_attribs()
+{
+    return d_ptr->attribs;
+}
+
 bool gs_program::assign_program_attrib(const shader_attrib &attrib)
 {
     GLint attrib_obj = glGetAttribLocation(d_ptr->obj, attrib.name.c_str());

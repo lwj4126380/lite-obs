@@ -1,5 +1,6 @@
 #include "gs_texture.h"
 #include "graphics.h"
+#include "gs_shader.h"
 
 bool fbo_info::attach_rendertarget(std::shared_ptr<gs_texture> tex) {
     if (cur_render_target.lock() == tex)
@@ -51,6 +52,7 @@ struct gs_texture_base {
     bool is_dummy{};
     bool gen_mipmaps{};
 
+    std::weak_ptr<gs_sampler_state> cur_sampler;
     std::shared_ptr<fbo_info> fbo{};
 };
 
@@ -236,6 +238,49 @@ std::shared_ptr<fbo_info> gs_texture::get_fbo()
 GLuint gs_texture::gs_texture_obj()
 {
     return d_ptr->base.texture;
+}
+
+GLenum gs_texture::gs_texture_target()
+{
+    return d_ptr->base.gl_target;
+}
+
+bool gs_texture::gs_texture_load_texture_sampler(std::shared_ptr<gs_sampler_state> ss)
+{
+    bool success = true;
+    GLint min_filter;
+
+    auto cur_sampler = d_ptr->base.cur_sampler.lock();
+
+    if (cur_sampler == ss)
+        return true;
+
+    d_ptr->base.cur_sampler = ss;
+    if (!ss)
+        return true;
+
+
+    min_filter = ss->min_filter;
+    if (!gl_tex_param_i(d_ptr->base.gl_target, GL_TEXTURE_MIN_FILTER, min_filter))
+        success = false;
+    if (!gl_tex_param_i(d_ptr->base.gl_target, GL_TEXTURE_MAG_FILTER,
+                        ss->mag_filter))
+        success = false;
+    if (!gl_tex_param_i(d_ptr->base.gl_target, GL_TEXTURE_WRAP_S, ss->address_u))
+        success = false;
+    if (!gl_tex_param_i(d_ptr->base.gl_target, GL_TEXTURE_WRAP_T, ss->address_v))
+        success = false;
+    if (!gl_tex_param_i(d_ptr->base.gl_target, GL_TEXTURE_WRAP_R, ss->address_w))
+        success = false;
+
+    if (d_ptr->base.format == gs_color_format::GS_A8) {
+        gl_tex_param_i(d_ptr->base.gl_target, GL_TEXTURE_SWIZZLE_R, GL_ONE);
+        gl_tex_param_i(d_ptr->base.gl_target, GL_TEXTURE_SWIZZLE_G, GL_ONE);
+        gl_tex_param_i(d_ptr->base.gl_target, GL_TEXTURE_SWIZZLE_B, GL_ONE);
+        gl_tex_param_i(d_ptr->base.gl_target, GL_TEXTURE_SWIZZLE_A, GL_RED);
+    }
+
+    return success;
 }
 
 bool gs_texture::upload_texture_2d(const uint8_t **data)

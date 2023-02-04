@@ -201,6 +201,15 @@ enum class gs_draw_mode {
     GS_TRISTRIP,
 };
 
+enum class attrib_type {
+    ATTRIB_POSITION,
+    ATTRIB_NORMAL,
+    ATTRIB_TANGENT,
+    ATTRIB_COLOR,
+    ATTRIB_TEXCOORD,
+    ATTRIB_TARGET
+};
+
 static inline GLenum convert_gs_topology(gs_draw_mode mode)
 {
     switch (mode) {

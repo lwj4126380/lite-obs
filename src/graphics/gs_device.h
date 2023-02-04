@@ -2,10 +2,11 @@
 
 #include <memory>
 #include "graphics.h"
-#include "gs_texture.h"
 
 struct gs_device_private;
 struct gl_platform;
+
+struct fbo_info;
 
 class gs_vertexbuffer;
 class gs_indexbuffer;
@@ -34,7 +35,7 @@ public:
 
     void gs_device_draw(std::shared_ptr<gs_program> program, gs_draw_mode draw_mode, uint32_t start_vert, uint32_t num_verts);
 
-    void gs_device_load_texture(std::weak_ptr<gs_texture> tex, int unit);
+    void gs_device_load_texture(std::weak_ptr<gs_texture> p_tex, int unit);
 
 private:
     std::unique_ptr<gl_platform> gl_platform_create();
@@ -43,6 +44,7 @@ private:
     uint32_t get_target_height();
 
     bool can_render(uint32_t num_verts);
+    void update_viewproj_matrix();
 
 private:
     std::unique_ptr<gs_device_private> d_ptr{};

@@ -131,11 +131,52 @@ void gs_vertexbuffer::gs_vertexbuffer_flush_direct(const gs_vb_data *data)
     gs_vertexbuffer_flush_internal(data);
 }
 
+bool gs_vertexbuffer::gs_load_vb_buffers(attrib_type t, size_t index, GLuint id)
+{
+    GLenum type;
+    GLint width;
+    GLuint buffer;
+    bool success = true;
+
+    buffer = get_vb_buffer(t, index, &width, &type);
+    if (!buffer) {
+        blog(LOG_ERROR, "Vertex buffer does not have the required "
+                        "inputs for vertex shader");
+        return false;
+    }
+
+    if (!gl_bind_buffer(GL_ARRAY_BUFFER, buffer))
+        return false;
+
+    glVertexAttribPointer(id, width, type, GL_TRUE, 0, 0);
+    if (!gl_success("glVertexAttribPointer"))
+        success = false;
+
+    glEnableVertexAttribArray(id);
+    if (!gl_success("glEnableVertexAttribArray"))
+        success = false;
+
+    if (!gl_bind_buffer(GL_ARRAY_BUFFER, 0))
+        success = false;
+
+    return success;
+}
+
+GLuint gs_vertexbuffer::gs_vertexbuffer_vao()
+{
+    return d_ptr->vao;
+}
+
+size_t gs_vertexbuffer::gs_vertexbuffer_num()
+{
+    return d_ptr->num;
+}
+
 void gs_vertexbuffer::gs_vertexbuffer_flush_internal(const gs_vb_data *data)
 {
     size_t i;
     size_t num_tex = data->num_tex < d_ptr->data->num_tex ? data->num_tex
-                                                       : d_ptr->data->num_tex;
+                                                          : d_ptr->data->num_tex;
 
     if (!d_ptr->dynamic) {
         blog(LOG_ERROR, "vertex buffer is not dynamic");
@@ -182,4 +223,29 @@ void gs_vertexbuffer::gs_vertexbuffer_flush_internal(const gs_vb_data *data)
 
 failed:
     blog(LOG_ERROR, "gs_vertexbuffer_flush (GL) failed");
+}
+
+GLuint gs_vertexbuffer::get_vb_buffer(attrib_type type, size_t index, GLint *width, GLenum *gl_type)
+{
+    *gl_type = GL_FLOAT;
+    *width = 4;
+
+    if (type == attrib_type::ATTRIB_POSITION) {
+        return d_ptr->vertex_buffer;
+    } else if (type == attrib_type::ATTRIB_NORMAL) {
+        return d_ptr->normal_buffer;
+    } else if (type == attrib_type::ATTRIB_TANGENT) {
+        return d_ptr->tangent_buffer;
+    } else if (type == attrib_type::ATTRIB_COLOR) {
+        *gl_type = GL_UNSIGNED_BYTE;
+        return d_ptr->color_buffer;
+    } else if (type == attrib_type::ATTRIB_TEXCOORD) {
+        if (d_ptr->uv_buffers.size() <= index)
+            return 0;
+
+        *width = (GLint)d_ptr->uv_sizes[index];
+        return d_ptr->uv_buffers[index];
+    }
+
+    return 0;
 }

@@ -20,7 +20,7 @@ struct graphics_subsystem_private
     std::list<glm::mat4x4> matrix_stack{};
     size_t cur_matrix{};
 
-    glm::mat4x4 projection;
+    glm::mat4x4 projection{0};
 
     std::shared_ptr<gs_vertexbuffer> sprite_buffer{};
 
@@ -296,4 +296,12 @@ void gs_load_texture(std::weak_ptr<gs_texture> tex, int unit)
         return;
 
     thread_graphics->d_ptr->device->gs_device_load_texture(tex, unit);
+}
+
+void gs_matrix_get(glm::mat4x4 &matrix)
+{
+    if (!gs_valid("gs_matrix_get"))
+        return;
+
+    matrix = thread_graphics->d_ptr->matrix_stack.back();
 }

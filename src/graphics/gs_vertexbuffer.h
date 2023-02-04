@@ -79,9 +79,16 @@ public:
     void gs_vertexbuffer_flush();
     void gs_vertexbuffer_flush_direct(const gs_vb_data *data);
 
+    bool gs_load_vb_buffers(attrib_type t, size_t index, GLuint id);
+
+    GLuint gs_vertexbuffer_vao();
+
+    size_t gs_vertexbuffer_num();
+
 private:
     bool create_buffers();
     void gs_vertexbuffer_flush_internal(const gs_vb_data *data);
+    GLuint get_vb_buffer(attrib_type type, size_t index, GLint *width, GLenum *gl_type);
 
 private:
     std::unique_ptr<gs_vertexbuffer_private> d_ptr{};

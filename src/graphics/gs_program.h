@@ -18,6 +18,12 @@ public:
 
     void gs_effect_upload_parameters(bool change_only);
 
+    std::shared_ptr<gs_shader> gs_effect_vertex_shader();
+    std::shared_ptr<gs_shader> gs_effect_pixel_shader();
+
+    GLuint gs_effect_obj();
+    const std::vector<GLint> &gs_effect_attribs();
+
 private:
     bool assign_program_attrib(const shader_attrib &attrib);
     bool assign_program_attribs();

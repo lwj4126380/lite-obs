@@ -27,6 +27,7 @@ struct fbo_info {
 };
 
 struct gs_zstencil_buffer;
+struct gs_sampler_state;
 struct gs_texture_private;
 class gs_texture
 {
@@ -49,6 +50,9 @@ public:
 
     std::shared_ptr<fbo_info> get_fbo();
     GLuint gs_texture_obj();
+    GLenum gs_texture_target();
+
+    bool gs_texture_load_texture_sampler(std::shared_ptr<gs_sampler_state> ss);
 
 private:
     bool create_pixel_unpack_buffer();
