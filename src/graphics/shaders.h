@@ -1,47 +1,6 @@
 #pragma once
 
-#include <vector>
-#include <string>
-#include "gs_subsystem_info.h"
-
-enum class gs_shader_type {
-    GS_SHADER_VERTEX,
-    GS_SHADER_PIXEL,
-};
-
-enum class gs_shader_param_type {
-    GS_SHADER_PARAM_UNKNOWN,
-    GS_SHADER_PARAM_BOOL,
-    GS_SHADER_PARAM_FLOAT,
-    GS_SHADER_PARAM_INT,
-    GS_SHADER_PARAM_STRING,
-    GS_SHADER_PARAM_VEC2,
-    GS_SHADER_PARAM_VEC3,
-    GS_SHADER_PARAM_VEC4,
-    GS_SHADER_PARAM_INT2,
-    GS_SHADER_PARAM_INT3,
-    GS_SHADER_PARAM_INT4,
-    GS_SHADER_PARAM_MATRIX4X4,
-    GS_SHADER_PARAM_TEXTURE,
-};
-
-enum class gs_sample_filter {
-    GS_FILTER_POINT,
-    GS_FILTER_LINEAR,
-    GS_FILTER_ANISOTROPIC,
-    GS_FILTER_MIN_MAG_POINT_MIP_LINEAR,
-    GS_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT,
-    GS_FILTER_MIN_POINT_MAG_MIP_LINEAR,
-    GS_FILTER_MIN_LINEAR_MAG_MIP_POINT,
-    GS_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
-    GS_FILTER_MIN_MAG_LINEAR_MIP_POINT,
-};
-
-enum class gs_address_mode {
-    GS_ADDRESS_CLAMP,
-    GS_ADDRESS_WRAP,
-    GS_ADDRESS_MIRROR,
-};
+#include "gs_shader_info.h"
 
 static enum gs_shader_param_type get_shader_param_type(const char *type)
 {
@@ -196,7 +155,6 @@ struct gl_parser_shader_var
     std::string name{};
     std::string mapping{};
     shader_var_type var_type{};
-    int array_count{};
     size_t gl_sampler_id{}; /* optional: used/parsed by GL */
 
     std::vector<uint8_t> default_val{};

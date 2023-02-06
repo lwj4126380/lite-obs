@@ -1,5 +1,5 @@
 #include "gs_texture.h"
-#include "graphics.h"
+#include "gs_subsystem.h"
 #include "gs_shader.h"
 
 bool fbo_info::attach_rendertarget(std::shared_ptr<gs_texture> tex) {

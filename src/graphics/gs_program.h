@@ -1,11 +1,14 @@
 #pragma once
 
 #include <memory>
-#include "gs_shader.h"
+#include <vector>
+#include "gs_subsystem_info.h"
+#include "gs_shader_info.h"
 
 struct program_param;
 struct gs_program_private;
 class gs_texture;
+class gs_shader;
 class gs_program
 {
 public:

@@ -3,7 +3,7 @@
 #include <mutex>
 #include <list>
 
-#include "graphics/graphics.h"
+#include "graphics/gs_subsystem.h"
 #include "graphics/gs_texture.h"
 #include "graphics/gs_program.h"
 
@@ -99,7 +99,7 @@ int lite_obs::obs_init_graphics(obs_video_info *ovi)
 //            tex->gs_texture_unmap();
 //        }
 
-        QImage image("D:/test.jpg");
+        QImage image(":/test.jpg");
         image = image.convertToFormat(QImage::Format_RGBA8888);
 
         auto bits = image.bits();
@@ -123,19 +123,19 @@ int lite_obs::obs_init_graphics(obs_video_info *ovi)
         glFlush();
 
 
-//        char *image_data = (char*)malloc(640 * 480 * 4);
-//        memset(image_data, 0, 640 * 480 * 4);
-//        glReadBuffer(GL_COLOR_ATTACHMENT0);
-//        glReadPixels(0, 0, 640, 480, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
+        char *image_data = (char*)malloc(640 * 480 * 4);
+        memset(image_data, 0, 640 * 480 * 4);
+        //glReadBuffer(GL_COLOR_ATTACHMENT0);
+        glReadPixels(0, 0, 640, 480, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
 
 
 
-//        QFile f("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/files/500.rgba");
-//        f.open(QFile::ReadWrite);
-//        f.write(image_data, 640*480*4);
-//        f.close();
+        QFile f("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/files/500.rgba");
+        f.open(QFile::ReadWrite);
+        f.write(image_data, 640*480*4);
+        f.close();
 
-//        free(image_data);
+        free(image_data);
 
 
         tex.reset();

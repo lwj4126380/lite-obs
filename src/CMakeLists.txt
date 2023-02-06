@@ -76,18 +76,19 @@ set(liteobs_SOURCES
 set(liteobs_graphics_HEADERS
     graphics/gs_subsystem_info.h
     graphics/gl-helpers.h
-    graphics/graphics.h
+    graphics/gs_subsystem.h
     graphics/gs_device.h
     graphics/gs_vertexbuffer.h
     graphics/gs_texture.h
-    graphics/gs_shader.h
+    graphics/gs_shader_info.h
     graphics/shaders.h
+    graphics/gs_shader.h
     graphics/gs_program.h
 )
 
 set(liteobs_graphics_SOURCES
     graphics/gl-helpers.cpp
-    graphics/graphics.cpp
+    graphics/gs_subsystem.cpp
     graphics/gs_device.cpp
     graphics/gs_vertexbuffer.cpp
     graphics/gs_texture.cpp

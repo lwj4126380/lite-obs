@@ -2,7 +2,8 @@
 #include "gs_subsystem_info.h"
 #include "gl-helpers.h"
 #include "util/log.h"
-#include "graphics.h"
+#include "gs_shader.h"
+#include "gs_subsystem.h"
 
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
@@ -194,6 +195,8 @@ void gs_program::gs_effect_upload_parameters(bool change_only)
             glUniform1i(param.obj, param.param->texture_id);
             gs_load_texture(param.param->texture, param.param->texture_id);
         }
+
+        param.param->changed = false;
     }
 }
 

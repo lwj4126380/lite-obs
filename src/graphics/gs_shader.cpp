@@ -153,11 +153,16 @@ std::shared_ptr<gs_shader_param> gs_shader::gs_shader_param_by_unit(int unit)
 
 void gs_shader::gs_shader_set_matrix4(const glm::mat4x4 &val)
 {
-    if (!d_ptr->viewproj)
+    gs_shader_set_matrix4(d_ptr->viewproj, val);
+}
+
+void gs_shader::gs_shader_set_matrix4(const std::shared_ptr<gs_shader_param> &param, const glm::mat4x4 &val)
+{
+    if (!param)
         return;
 
-    d_ptr->viewproj->cur_value.resize(sizeof(glm::mat4x4));
-    memcpy(d_ptr->viewproj->cur_value.data(), &val, sizeof(glm::mat4x4));
+    param->cur_value.resize(sizeof(glm::mat4x4));
+    memcpy(param->cur_value.data(), &val, sizeof(glm::mat4x4));
 }
 
 std::string gs_shader::gl_get_shader_info(GLuint shader)

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include "graphics.h"
+#include "gs_subsystem.h"
 
 struct gs_device_private;
 struct gl_platform;

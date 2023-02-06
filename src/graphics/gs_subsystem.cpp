@@ -1,4 +1,4 @@
-#include "graphics.h"
+#include "gs_subsystem.h"
 #include <mutex>
 #include "gs_device.h"
 #include "gs_vertexbuffer.h"
@@ -136,7 +136,7 @@ void graphics_subsystem::gs_draw_sprite(std::shared_ptr<gs_texture> tex, uint32_
     d_ptr->device->gs_device_load_vertexbuffer(d_ptr->sprite_buffer);
     d_ptr->device->gs_device_load_indexbuffer(nullptr);
 
-    //gs_draw(GS_TRISTRIP, 0, 0);
+    d_ptr->device->gs_device_draw(d_ptr->effects["default_effect"], gs_draw_mode::GS_TRISTRIP, 0, 0);
 }
 
 bool graphics_subsystem::graphics_init()

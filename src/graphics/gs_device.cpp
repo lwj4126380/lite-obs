@@ -1,5 +1,5 @@
 #include "gs_device.h"
-#include "graphics.h"
+#include "gs_subsystem.h"
 #include "util/log.h"
 
 #include "gl-helpers.h"
@@ -176,7 +176,7 @@ bool gs_device::set_current_fbo(std::shared_ptr<fbo_info> fbo)
         }
     }
 
-    cur_fbo = fbo;
+    d_ptr->cur_fbo = fbo;
     return true;
 }
 

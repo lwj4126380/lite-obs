@@ -88,7 +88,6 @@ gs_shader_info default_vertex_shader = {
             "",
             shader_var_type::SHADER_VAR_UNIFORM,
             0,
-            0,
             {}
         }
     },
@@ -123,7 +122,6 @@ gs_shader_info default_pixel_shader = {
             "image",
             "",
             shader_var_type::SHADER_VAR_UNIFORM,
-            0,
             0,
             {}
         }
