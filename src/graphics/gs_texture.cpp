@@ -2,6 +2,24 @@
 #include "gs_subsystem.h"
 #include "gs_shader.h"
 
+static inline bool gs_is_compressed_format(gs_color_format format)
+{
+    return false;
+}
+
+static inline uint32_t gs_get_total_levels(uint32_t width, uint32_t height)
+{
+    uint32_t size = width > height ? width : height;
+    uint32_t num_levels = 0;
+
+    while (size > 1) {
+        size /= 2;
+        num_levels++;
+    }
+
+    return num_levels;
+}
+
 bool fbo_info::attach_rendertarget(std::shared_ptr<gs_texture> tex) {
     if (cur_render_target.lock() == tex)
         return true;
@@ -140,6 +158,39 @@ uint32_t gs_texture::gs_texture_get_height()
 gs_color_format gs_texture::gs_texture_get_color_format()
 {
     return d_ptr->base.format;
+}
+
+void gs_texture::gs_texture_set_image(const uint8_t *data, uint32_t linesize, bool flip)
+{
+    uint8_t *ptr;
+    uint32_t linesize_out;
+    uint32_t row_copy;
+    int32_t height;
+    int32_t y;
+
+    height = (int32_t)d_ptr->height;
+
+    if (!gs_texture_map(&ptr, &linesize_out))
+        return;
+
+    row_copy = (linesize < linesize_out) ? linesize : linesize_out;
+
+    if (flip) {
+        for (y = height - 1; y >= 0; y--)
+            memcpy(ptr + (uint32_t)y * linesize_out,
+                   data + (uint32_t)(height - y - 1) * linesize,
+                   row_copy);
+
+    } else if (linesize == linesize_out) {
+        memcpy(ptr, data, row_copy * height);
+
+    } else {
+        for (y = 0; y < height; y++)
+            memcpy(ptr + (uint32_t)y * linesize_out,
+                   data + (uint32_t)y * linesize, row_copy);
+    }
+
+    gs_texture_unmap();
 }
 
 bool gs_texture::gs_texture_map(uint8_t **ptr, uint32_t *linesize)

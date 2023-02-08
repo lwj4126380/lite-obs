@@ -188,4 +188,4 @@ struct gs_shader_item
     std::vector<gs_shader_info> shaders;
 };
 
-extern std::vector<gs_shader_item> all_shaders;
+extern std::string conversion_shaders_total;

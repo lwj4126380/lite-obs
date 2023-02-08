@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <string>
 
 #include "gs_subsystem_info.h"
 #include <glm/vec4.hpp>
@@ -11,6 +12,7 @@ struct graphics_subsystem_private;
 class gs_device;
 class gs_texture;
 class gs_program;
+class gs_shader;
 struct gs_zstencil_buffer;
 class graphics_subsystem
 {
@@ -27,6 +29,7 @@ public:
 private:
     bool graphics_init();
     bool graphics_init_sprite_vb();
+    std::shared_ptr<gs_shader> shader_from_string(const std::string &shader_string, bool vertex_shader, std::string &out_name);
 
 public:
     std::unique_ptr<graphics_subsystem_private> d_ptr{};
@@ -39,61 +42,30 @@ void gs_enter_contex(std::unique_ptr<graphics_subsystem> &graphics);
 void gs_leave_context();
 
 void gs_enable_depth_test(bool enable);
+void gs_enable_blending(bool enable);
 void gs_set_cull_mode(gs_cull_mode mode);
 void gs_ortho(float left, float right, float top, float bottom, float znear, float zfar);
 void gs_set_viewport(int x, int y, int width, int height);
+void gs_get_viewport(gs_rect &rect);
 void gs_clear(uint32_t clear_flags, glm::vec4 *color, float depth, uint8_t stencil);
 void gs_set_render_size(uint32_t width, uint32_t height);
 void gs_set_render_target(std::shared_ptr<gs_texture> tex, std::shared_ptr<gs_zstencil_buffer> zs);
-
+void gs_set_cur_effect(std::shared_ptr<gs_program> program);
 void gs_load_texture(std::weak_ptr<gs_texture> tex, int unit);
 
 void gs_matrix_get(glm::mat4x4 &matrix);
 
-static inline uint32_t gs_get_format_bpp(gs_color_format format)
-{
-    switch (format) {
-    case gs_color_format::GS_A8:
-        return 8;
-    case gs_color_format::GS_R8:
-        return 8;
-    case gs_color_format::GS_RGBA:
-        return 32;
-    case gs_color_format::GS_RGBA16F:
-        return 64;
-    case gs_color_format::GS_RGBA32F:
-        return 128;
-    case gs_color_format::GS_RG16F:
-        return 32;
-    case gs_color_format::GS_RG32F:
-        return 64;
-    case gs_color_format::GS_R16F:
-        return 16;
-    case gs_color_format::GS_R32F:
-        return 32;
-    case gs_color_format::GS_R8G8:
-        return 16;
-    case gs_color_format::GS_UNKNOWN:
-        return 0;
-    }
+void gs_viewport_push();
+void gs_viewport_pop();
+void gs_projection_push();
+void gs_projection_pop();
+void gs_matrix_push();
+void gs_matrix_pop();
+void gs_matrix_identity();
 
-    return 0;
-}
+std::shared_ptr<gs_texture> gs_get_render_target();
+std::shared_ptr<gs_zstencil_buffer> gs_get_zstencil_target();
 
-static inline bool gs_is_compressed_format(gs_color_format format)
-{
-    return false;
-}
-
-static inline uint32_t gs_get_total_levels(uint32_t width, uint32_t height)
-{
-    uint32_t size = width > height ? width : height;
-    uint32_t num_levels = 0;
-
-    while (size > 1) {
-        size /= 2;
-        num_levels++;
-    }
-
-    return num_levels;
-}
+void gs_draw(gs_draw_mode draw_mode, uint32_t start_vert, uint32_t num_verts);
+void gs_technique_begin();
+void gs_technique_end();

@@ -11,11 +11,37 @@
 
 #include <list>
 #include <map>
+#include <algorithm>
 #include <glm/mat4x4.hpp>
+
+std::vector<std::string> split (const std::string &s, std::string delimiter) {
+    size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+    std::string token;
+    std::vector<std::string> res;
+
+    while ((pos_end = s.find (delimiter, pos_start)) != std::string::npos) {
+        token = s.substr (pos_start, pos_end - pos_start);
+        pos_start = pos_end + delim_len;
+        res.push_back (token);
+    }
+
+    res.push_back (s.substr (pos_start));
+    return res;
+}
+
+struct blend_state {
+    bool enabled{};
+    gs_blend_type src_c{};
+    gs_blend_type dest_c{};
+    gs_blend_type src_a{};
+    gs_blend_type dest_a{};
+};
 
 struct graphics_subsystem_private
 {
     std::shared_ptr<gs_device> device{};
+
+    std::list<gs_rect> viewport_stack{};
 
     std::list<glm::mat4x4> matrix_stack{};
     size_t cur_matrix{};
@@ -24,11 +50,13 @@ struct graphics_subsystem_private
 
     std::shared_ptr<gs_vertexbuffer> sprite_buffer{};
 
-    std::recursive_mutex mutex;
     std::mutex effect_mutex;
-
     std::map<std::string, std::shared_ptr<gs_program>> effects{};
 
+    blend_state cur_blend_state{};
+    std::list<blend_state> blend_state_stack{};
+
+    std::recursive_mutex mutex;
     std::atomic_long ref{};
 };
 
@@ -82,28 +110,27 @@ int graphics_subsystem::gs_create()
 
 int graphics_subsystem::gs_effect_init()
 {
-    for (int i = 0; i < all_shaders.size(); ++i) {
-        const gs_shader_item &item = all_shaders[i];
+    conversion_shaders_total.erase(std::remove(conversion_shaders_total.begin(), conversion_shaders_total.end(), '\n'), conversion_shaders_total.end());
 
-        std::shared_ptr<gs_shader> vertex_shader{};
-        std::shared_ptr<gs_shader> pixel_shader{};
-        for (int j = 0; j < item.shaders.size(); ++j) {
-            std::shared_ptr<gs_shader> shader = std::make_shared<gs_shader>();
-            if (!shader->gs_shader_init(item.shaders.at(j))) {
-                blog(LOG_DEBUG, "%s shader init fail.", item.name.c_str());
-                continue;
-            }
-            if (shader->type() == gs_shader_type::GS_SHADER_VERTEX)
-                vertex_shader = shader;
-            else if (shader->type() == gs_shader_type::GS_SHADER_PIXEL)
-                pixel_shader = shader;
-        }
+    auto strs = split(conversion_shaders_total, "=======================================");
+    for (int i = 0; i< strs.size(); i+=2) {
+        auto &v = strs[i];
+        auto &p = strs[i+1];
+        std::string name;
+        auto vertex_shader = shader_from_string(v, true, name);
+        auto pixel_shader = shader_from_string(p, false, name);
 
         if (vertex_shader && pixel_shader) {
             auto program = std::make_shared<gs_program>();
             if (program->gs_program_create(vertex_shader, pixel_shader)) {
-                d_ptr->effects.insert({item.name, program});
+                d_ptr->effects.insert({name, program});
+            } else {
+                return GS_ERROR_FAIL;
+                blog(LOG_DEBUG, "effect %s init error!", name.c_str());
             }
+        } else {
+            blog(LOG_DEBUG, "create shader error.");
+            return GS_ERROR_FAIL;
         }
     }
 
@@ -136,7 +163,7 @@ void graphics_subsystem::gs_draw_sprite(std::shared_ptr<gs_texture> tex, uint32_
     d_ptr->device->gs_device_load_vertexbuffer(d_ptr->sprite_buffer);
     d_ptr->device->gs_device_load_indexbuffer(nullptr);
 
-    d_ptr->device->gs_device_draw(d_ptr->effects["default_effect"], gs_draw_mode::GS_TRISTRIP, 0, 0);
+    d_ptr->device->gs_device_draw(gs_draw_mode::GS_TRISTRIP, 0, 0);
 }
 
 bool graphics_subsystem::graphics_init()
@@ -153,6 +180,11 @@ bool graphics_subsystem::graphics_init()
                                                   gs_blend_type::GS_BLEND_INVSRCALPHA,
                                                   gs_blend_type::GS_BLEND_ONE,
                                                   gs_blend_type::GS_BLEND_INVSRCALPHA);
+    d_ptr->cur_blend_state.enabled = true;
+    d_ptr->cur_blend_state.src_c = gs_blend_type::GS_BLEND_SRCALPHA;
+    d_ptr->cur_blend_state.dest_c = gs_blend_type::GS_BLEND_INVSRCALPHA;
+    d_ptr->cur_blend_state.src_a = gs_blend_type::GS_BLEND_ONE;
+    d_ptr->cur_blend_state.dest_a = gs_blend_type::GS_BLEND_INVSRCALPHA;
 
     return true;
 }
@@ -165,6 +197,81 @@ bool graphics_subsystem::graphics_init_sprite_vb()
 
     d_ptr->sprite_buffer = std::move(vb);
     return true;
+}
+
+std::shared_ptr<gs_shader> graphics_subsystem::shader_from_string(const std::string &shader_string, bool vertex_shader, std::string &out_name)
+{
+    auto strings = split(shader_string, "---------------------------------------");
+    if (strings.size() != 5)
+        return nullptr;
+
+    auto &shader_name = strings[0];
+    auto &shader_source = strings[1];
+    auto &shader_param = strings[2];
+    auto &shader_attribs = strings[3];
+    auto &shader_samplers = strings[4];
+
+    gs_shader_info shader_info;
+    shader_info.shader = shader_source;
+    shader_info.type = vertex_shader ? gs_shader_type::GS_SHADER_VERTEX : gs_shader_type::GS_SHADER_PIXEL;
+
+    if (shader_param.length() > 0) {
+        auto params = split(shader_param, "+++++++++++++++++++++++++++++++++++++++");
+        for (int i = 0; i < params.size(); ++i) {
+            auto &param = params[i];
+            auto p = split(param, " ");
+            if (p.size() != 6)
+                return nullptr;
+
+            gl_parser_shader_var var;
+            var.type = p[0];
+            var.name = p[1];
+            var.mapping = p[2] == "null" ? "" : p[2];
+            var.var_type = (shader_var_type)std::stoi(p[3]);
+            var.gl_sampler_id = std::stoull(p[5]);
+
+            shader_info.parser_shader_vars.push_back(std::move(var));
+        }
+    }
+
+    if (shader_attribs.length() > 0) {
+        auto attribs = split(shader_attribs, "+++++++++++++++++++++++++++++++++++++++");
+        for (int i = 0; i < attribs.size(); ++i) {
+            auto &attrib = attribs[i];
+            auto a = split(attrib, " ");
+            if (a.size() != 3)
+                return nullptr;
+
+            gl_parser_attrib att;
+            att.name = a[0];
+            att.mapping = a[1] == "null" ? "" : a[1];
+            att.input = std::stoi(a[2]);
+
+            shader_info.parser_attribs.push_back(std::move(att));
+        }
+    }
+
+    if (shader_samplers.length() > 0) {
+        auto samplers = split(shader_samplers, "+++++++++++++++++++++++++++++++++++++++");
+        for (int i = 0; i < samplers.size(); ++i) {
+            auto name = samplers[i];
+            if (name == "def_sampler") {
+                gl_parser_shader_sampler sampler;
+                sampler.name = "def_sampler";
+                sampler.states = {"Filter", "AddressU", "AddressV"};
+                sampler.values = {"Linear", "Clamp", "Clamp"};
+
+                shader_info.parser_shader_samplers.push_back(std::move(sampler));
+            }
+        }
+    }
+
+    auto shader = std::make_shared<gs_shader>();
+    if (!shader->gs_shader_init(shader_info))
+        return nullptr;
+
+    out_name = shader_name;
+    return shader;
 }
 
 
@@ -223,6 +330,19 @@ void gs_enable_depth_test(bool enable)
         gl_disable(GL_DEPTH_TEST);
 }
 
+void gs_enable_blending(bool enable)
+{
+    if (!gs_valid("gs_enable_blending"))
+        return;
+
+    thread_graphics->d_ptr->cur_blend_state.enabled = enable;
+
+    if (enable)
+        gl_enable(GL_BLEND);
+    else
+        gl_disable(GL_BLEND);
+}
+
 void gs_set_cull_mode(gs_cull_mode mode)
 {
     if (!gs_valid("gs_set_cull_mode"))
@@ -245,6 +365,14 @@ void gs_set_viewport(int x, int y, int width, int height)
         return;
 
     thread_graphics->d_ptr->device->gs_device_set_viewport(x, y, width, height);
+}
+
+void gs_get_viewport(gs_rect &rect)
+{
+    if (!gs_valid("gs_get_viewport"))
+        return;
+
+    thread_graphics->d_ptr->device->gs_device_get_viewport(rect);
 }
 
 void gs_clear(uint32_t clear_flags, glm::vec4 *color, float depth, uint8_t stencil)
@@ -304,4 +432,142 @@ void gs_matrix_get(glm::mat4x4 &matrix)
         return;
 
     matrix = thread_graphics->d_ptr->matrix_stack.back();
+}
+
+void gs_set_cur_effect(std::shared_ptr<gs_program> program)
+{
+    if (!gs_valid("gs_set_cur_effect"))
+        return;
+
+    thread_graphics->d_ptr->device->gs_device_set_program(program);
+}
+
+void gs_technique_begin()
+{
+    if (!gs_valid("gs_technique_begin"))
+        return;
+
+    thread_graphics->d_ptr->device->gs_device_clear_textures();
+    thread_graphics->d_ptr->device->gs_device_load_default_pixelshader_samplers();
+    auto program = thread_graphics->d_ptr->device->gs_device_program();
+    if (!program)
+        return;
+
+    program->gs_effect_upload_parameters(false);
+}
+
+void gs_technique_end()
+{
+    if (!gs_valid("gs_technique_end"))
+        return;
+
+    auto program = thread_graphics->d_ptr->device->gs_device_program();
+    if (!program)
+        return;
+
+    program->gs_effect_clear_tex_params();
+    program->gs_effect_clear_all_params();
+    thread_graphics->d_ptr->device->gs_device_clear_textures();
+    thread_graphics->d_ptr->device->gs_device_set_program(nullptr);
+}
+
+void gs_draw(gs_draw_mode draw_mode, uint32_t start_vert, uint32_t num_verts)
+{
+    if (!gs_valid("gs_draw"))
+        return;
+
+    thread_graphics->d_ptr->device->gs_device_draw(draw_mode, start_vert, num_verts);
+}
+
+void gs_viewport_push()
+{
+    if (!gs_valid("gs_viewport_push"))
+        return;
+
+    gs_rect rect{};
+    gs_get_viewport(rect);
+    thread_graphics->d_ptr->viewport_stack.push_back(rect);
+}
+
+void gs_viewport_pop()
+{
+    if (!gs_valid("gs_viewport_pop"))
+        return;
+
+    auto &viewport = thread_graphics->d_ptr->viewport_stack;
+    if (viewport.empty())
+        return;
+
+    auto rect = viewport.back();
+    viewport.pop_back();
+    gs_set_viewport(rect.x, rect.y, rect.cx, rect.cy);
+}
+
+void gs_projection_push()
+{
+    if (!gs_valid("gs_projection_push"))
+        return;
+
+    thread_graphics->d_ptr->device->gs_device_projection_push();
+}
+
+void gs_projection_pop()
+{
+    if (!gs_valid("gs_projection_pop"))
+        return;
+
+    thread_graphics->d_ptr->device->gs_device_projection_pop();
+}
+
+void gs_matrix_push()
+{
+    if (!gs_valid("gs_matrix_push"))
+        return;
+
+    auto mat = thread_graphics->d_ptr->matrix_stack.back();
+    thread_graphics->d_ptr->matrix_stack.push_back(mat);
+}
+
+void gs_matrix_pop()
+{
+    if (!gs_valid("gs_matrix_pop"))
+        return;
+
+    auto &stack = thread_graphics->d_ptr->matrix_stack;
+    if (stack.empty()) {
+        blog(LOG_ERROR, "Tried to pop last matrix on stack");
+        return;
+    }
+
+    stack.pop_back();
+}
+
+void gs_matrix_identity()
+{
+    if (!gs_valid("gs_matrix_identity"))
+        return;
+
+    auto &stack = thread_graphics->d_ptr->matrix_stack;
+    if (stack.empty()) {
+        return;
+    }
+
+    auto &mat = stack.back();
+    mat = glm::mat4x4{1};
+}
+
+std::shared_ptr<gs_texture> gs_get_render_target()
+{
+    if (!gs_valid("gs_get_render_target"))
+        return nullptr;
+
+    return thread_graphics->d_ptr->device->gs_device_get_render_target();
+}
+
+std::shared_ptr<gs_zstencil_buffer> gs_get_zstencil_target()
+{
+    if (!gs_valid("gs_get_zstencil_target"))
+        return nullptr;
+
+    return thread_graphics->d_ptr->device->gs_device_get_zstencil_target();
 }

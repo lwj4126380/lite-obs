@@ -51,6 +51,8 @@ set(liteobs_HEADERS
     lite_output.h
     lite_encoder.h
 
+    lite_obs_core_video.h
+
     lite-obs2_global.h
     lite_obs.h
 )
@@ -67,6 +69,8 @@ set(liteobs_SOURCES
     lite_output.cpp
     lite_encoder.cpp
 
+    lite_obs_core_video.cpp
+
     lite_obs.cpp
 
     main.cpp
@@ -80,10 +84,12 @@ set(liteobs_graphics_HEADERS
     graphics/gs_device.h
     graphics/gs_vertexbuffer.h
     graphics/gs_texture.h
+    graphics/gs_texture_render.h
     graphics/gs_shader_info.h
     graphics/shaders.h
     graphics/gs_shader.h
     graphics/gs_program.h
+    graphics/gs_stagesurf.h
 )
 
 set(liteobs_graphics_SOURCES
@@ -92,9 +98,11 @@ set(liteobs_graphics_SOURCES
     graphics/gs_device.cpp
     graphics/gs_vertexbuffer.cpp
     graphics/gs_texture.cpp
+    graphics/gs_texture_render.cpp
     graphics/gs_shader.cpp
     graphics/shaders.cpp
     graphics/gs_program.cpp
+    graphics/gs_stagesurf.cpp
 )
 
 qt_add_executable(lite-obs

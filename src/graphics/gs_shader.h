@@ -30,6 +30,7 @@ public:
     const std::vector<shader_attrib> &gs_shader_attribs() const;
     const std::vector<std::shared_ptr<gs_shader_param>> &gs_shader_params() const;   
     std::shared_ptr<gs_shader_param> gs_shader_param_by_unit(int unit);
+    const std::vector<std::shared_ptr<gs_sampler_state>> &gs_shader_samplers() const;
 
     void gs_shader_set_matrix4(const glm::mat4x4 &val);
     void gs_shader_set_matrix4(const std::shared_ptr<gs_shader_param> &param, const glm::mat4x4 &val);

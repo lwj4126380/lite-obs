@@ -9,6 +9,8 @@
 #include <glad/glad_wgl.h>
 #endif
 
+#include <stdint.h>
+
 #define GS_SUCCESS 0
 #define GS_ERROR_FAIL -1
 #define GS_ERROR_MODULE_NOT_FOUND -2
@@ -84,6 +86,36 @@ enum class gs_color_format {
     GS_R32F,
     GS_R8G8,
 };
+
+static inline uint32_t gs_get_format_bpp(gs_color_format format)
+{
+    switch (format) {
+    case gs_color_format::GS_A8:
+        return 8;
+    case gs_color_format::GS_R8:
+        return 8;
+    case gs_color_format::GS_RGBA:
+        return 32;
+    case gs_color_format::GS_RGBA16F:
+        return 64;
+    case gs_color_format::GS_RGBA32F:
+        return 128;
+    case gs_color_format::GS_RG16F:
+        return 32;
+    case gs_color_format::GS_RG32F:
+        return 64;
+    case gs_color_format::GS_R16F:
+        return 16;
+    case gs_color_format::GS_R32F:
+        return 32;
+    case gs_color_format::GS_R8G8:
+        return 16;
+    case gs_color_format::GS_UNKNOWN:
+        return 0;
+    }
+
+    return 0;
+}
 
 static inline GLenum convert_gs_format(gs_color_format format)
 {
@@ -182,6 +214,24 @@ enum class gs_zstencil_format {
     GS_Z32F,
     GS_Z32F_S8X24,
 };
+
+static inline GLenum convert_zstencil_format(gs_zstencil_format format)
+{
+    switch (format) {
+    case gs_zstencil_format::GS_Z16:
+        return GL_DEPTH_COMPONENT16;
+    case gs_zstencil_format::GS_Z24_S8:
+        return GL_DEPTH24_STENCIL8;
+    case gs_zstencil_format::GS_Z32F:
+        return GL_DEPTH_COMPONENT32F;
+    case gs_zstencil_format::GS_Z32F_S8X24:
+        return GL_DEPTH32F_STENCIL8;
+    case gs_zstencil_format::GS_ZS_NONE:
+        return 0;
+    }
+
+    return 0;
+}
 
 #define GS_CLEAR_COLOR (1 << 0)
 #define GS_CLEAR_DEPTH (1 << 1)

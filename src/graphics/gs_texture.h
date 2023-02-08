@@ -8,6 +8,59 @@ struct gs_zstencil_buffer {
     GLuint buffer{};
     GLuint attachment{};
     GLenum format{};
+
+    static inline GLenum get_attachment(gs_zstencil_format format)
+    {
+        switch (format) {
+        case gs_zstencil_format::GS_Z16:
+            return GL_DEPTH_ATTACHMENT;
+        case gs_zstencil_format::GS_Z24_S8:
+            return GL_DEPTH_STENCIL_ATTACHMENT;
+        case gs_zstencil_format::GS_Z32F:
+            return GL_DEPTH_ATTACHMENT;
+        case gs_zstencil_format::GS_Z32F_S8X24:
+            return GL_DEPTH_STENCIL_ATTACHMENT;
+        case gs_zstencil_format::GS_ZS_NONE:
+            return 0;
+        }
+
+        return 0;
+    }
+
+    bool gl_init_zsbuffer(uint32_t width, uint32_t height)
+    {
+        glGenRenderbuffers(1, &buffer);
+        if (!gl_success("glGenRenderbuffers"))
+            return false;
+
+        if (!gl_bind_renderbuffer(GL_RENDERBUFFER, buffer))
+            return false;
+
+        glRenderbufferStorage(GL_RENDERBUFFER, format, width, height);
+        if (!gl_success("glRenderbufferStorage"))
+            return false;
+
+        gl_bind_renderbuffer(GL_RENDERBUFFER, 0);
+        return true;
+    }
+
+    gs_zstencil_buffer(uint32_t width, uint32_t height, gs_zstencil_format f) {
+        format = convert_zstencil_format(f);
+        attachment = get_attachment(f);
+
+
+        if (!gl_init_zsbuffer(width, height)) {
+            blog(LOG_ERROR, "device_zstencil_create (GL) failed");
+        }
+    }
+
+    ~gs_zstencil_buffer() {
+        if (buffer) {
+            glDeleteRenderbuffers(1, &buffer);
+            gl_success("glDeleteRenderbuffers");
+        }
+
+    }
 };
 
 class gs_texture;
@@ -41,6 +94,8 @@ public:
     uint32_t gs_texture_get_height();
 
     gs_color_format gs_texture_get_color_format();
+
+    void gs_texture_set_image(const uint8_t *data, uint32_t linesize, bool flip);
 
     bool gs_texture_map(uint8_t **ptr, uint32_t *linesize);
     void gs_texture_unmap();

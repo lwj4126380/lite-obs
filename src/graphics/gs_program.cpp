@@ -123,6 +123,39 @@ void gs_program::gs_effect_set_texture(const char *name, std::shared_ptr<gs_text
     p->param->changed = true;
 }
 
+void gs_program::gs_effect_set_param(const char *name, float value)
+{
+    auto p = gs_effect_get_param_by_name(name);
+    if (!p)
+        return;
+
+    p->param->cur_value.resize(sizeof(float));
+    memcpy(p->param->cur_value.data(), &value, sizeof(float));
+    p->param->changed = true;
+}
+
+void gs_program::gs_effect_set_param(const char *name, const glm::vec4 &value)
+{
+    auto p = gs_effect_get_param_by_name(name);
+    if (!p)
+        return;
+
+    p->param->cur_value.resize(sizeof(glm::vec4));
+    memcpy(p->param->cur_value.data(), &value, sizeof(glm::vec4));
+    p->param->changed = true;
+}
+
+void gs_program::gs_effect_set_param(const char *name, const void *value, size_t size)
+{
+    auto p = gs_effect_get_param_by_name(name);
+    if (!p)
+        return;
+
+    p->param->cur_value.resize(size);
+    memcpy(p->param->cur_value.data(), value, size);
+    p->param->changed = true;
+}
+
 static inline bool validate_param(const program_param &pp, size_t expected_size)
 {
     if (pp.param->cur_value.size() != expected_size) {
@@ -142,6 +175,10 @@ void gs_program::gs_effect_upload_parameters(bool change_only)
         auto &param = d_ptr->params[i];
         if (change_only && !param.param->changed)
             continue;
+        if (param.param->cur_value.empty() && !param.param->texture.lock()) {
+            param.param->changed = false;
+            continue;
+        }
 
         void *array = param.param->cur_value.data();
 
@@ -196,6 +233,25 @@ void gs_program::gs_effect_upload_parameters(bool change_only)
             gs_load_texture(param.param->texture, param.param->texture_id);
         }
 
+        param.param->changed = false;
+    }
+}
+
+void gs_program::gs_effect_clear_tex_params()
+{
+    for (int i = 0; i < d_ptr->params.size(); ++i) {
+        auto &param = d_ptr->params[i];
+        if (param.param->type == gs_shader_param_type::GS_SHADER_PARAM_TEXTURE) {
+            param.param->texture.reset();
+        }
+    }
+}
+
+void gs_program::gs_effect_clear_all_params()
+{
+    for (int i = 0; i < d_ptr->params.size(); ++i) {
+        auto &param = d_ptr->params[i];
+        param.param->cur_value.clear();
         param.param->changed = false;
     }
 }

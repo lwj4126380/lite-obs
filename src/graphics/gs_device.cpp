@@ -77,6 +77,8 @@ struct gs_device_private
     glm::mat4x4 cur_view{0};
     glm::mat4x4 cur_viewproj{0};
 
+    std::list<glm::mat4x4> proj_stack{};
+
     gs_device_private() {
         cur_textures.resize(GS_MAX_TEXTURES);
         cur_samplers.resize(GS_MAX_TEXTURES);
@@ -324,6 +326,35 @@ void gs_device::gs_device_set_viewport(int x, int y, int width, int height)
     d_ptr->cur_viewport.cy = height;
 }
 
+void gs_device::gs_device_get_viewport(gs_rect &rect)
+{
+    rect = d_ptr->cur_viewport;
+}
+
+void gs_device::gs_device_projection_push()
+{
+    d_ptr->proj_stack.push_back(d_ptr->cur_proj);
+}
+
+void gs_device::gs_device_projection_pop()
+{
+        if (d_ptr->proj_stack.empty())
+            return;
+
+        d_ptr->cur_proj = d_ptr->proj_stack.back();
+        d_ptr->proj_stack.pop_back();
+}
+
+std::shared_ptr<gs_texture> gs_device::gs_device_get_render_target()
+{
+    return d_ptr->cur_render_target.lock();
+}
+
+std::shared_ptr<gs_zstencil_buffer> gs_device::gs_device_get_zstencil_target()
+{
+    return d_ptr->cur_zstencil_buffer.lock();
+}
+
 void gs_device::gs_device_load_vertexbuffer(std::shared_ptr<gs_vertexbuffer> vb)
 {
     d_ptr->cur_vertex_buffer = vb;
@@ -334,13 +365,37 @@ void gs_device::gs_device_load_indexbuffer(std::shared_ptr<gs_indexbuffer> ib)
     d_ptr->cur_index_buffer = ib;
 }
 
-void gs_device::gs_device_draw(std::shared_ptr<gs_program> program, gs_draw_mode draw_mode, uint32_t start_vert, uint32_t num_verts)
+void gs_device::gs_device_set_program(std::shared_ptr<gs_program> program)
 {
     std::shared_ptr<gs_program> cur_program = d_ptr->cur_program.lock();
+
+    if (program != cur_program && cur_program) {
+        glUseProgram(0);
+        gl_success("glUseProgram (zero)");
+    }
+
+    if (program != cur_program) {
+        d_ptr->cur_program = program;
+        if (program) {
+            glUseProgram(program->gs_effect_obj());
+            gl_success("glUseProgram");
+        }
+    }
+}
+
+std::shared_ptr<gs_program> gs_device::gs_device_program()
+{
+    return d_ptr->cur_program.lock();
+}
+
+void gs_device::gs_device_draw(gs_draw_mode draw_mode, uint32_t start_vert, uint32_t num_verts)
+{
+    auto program = d_ptr->cur_program.lock();
+    if (!program)
+        return;
+
     auto vb = d_ptr->cur_vertex_buffer.lock();
     auto ib = d_ptr->cur_index_buffer.lock();
-    if (!vb)
-        return;
 
     GLenum topology = convert_gs_topology(draw_mode);
 
@@ -361,18 +416,6 @@ void gs_device::gs_device_draw(std::shared_ptr<gs_program> program, gs_draw_mode
     } else
         gl_bind_vertex_array(d_ptr->empty_vao);
 
-    if (program != cur_program && cur_program) {
-        glUseProgram(0);
-        gl_success("glUseProgram (zero)");
-    }
-
-    if (program != cur_program) {
-        d_ptr->cur_program = program;
-
-        glUseProgram(program->gs_effect_obj());
-        if (!gl_success("glUseProgram"))
-            goto fail;
-    }
 
     update_viewproj_matrix();
 
@@ -446,6 +489,35 @@ void gs_device::gs_device_load_texture(std::weak_ptr<gs_texture> p_tex, int unit
 
 fail:
     blog(LOG_ERROR, "device_load_texture (GL) failed");
+}
+
+void gs_device::gs_device_clear_textures()
+{
+    GLenum i;
+    for (i = 0; i < GS_MAX_TEXTURES; i++) {
+        auto tex = d_ptr->cur_textures[i].lock();
+        if (tex) {
+            gl_active_texture(GL_TEXTURE0 + i);
+            gl_bind_texture(tex->gs_texture_target(), 0);
+            d_ptr->cur_textures[i].reset();
+        }
+    }
+}
+
+void gs_device::gs_device_load_default_pixelshader_samplers()
+{
+    auto program = d_ptr->cur_program.lock();
+    if (!program)
+        return;
+
+    auto samplers = program->gs_effect_pixel_shader()->gs_shader_samplers();
+    int i = 0;
+    for (; i < samplers.size(); ++i) {
+        d_ptr->cur_samplers[i] = samplers[i];
+    }
+
+    for (; i < GS_MAX_TEXTURES; i++)
+        d_ptr->cur_samplers[i].reset();
 }
 
 #if defined __ANDROID__

@@ -113,8 +113,6 @@ bool gs_shader::gs_shader_init(const gs_shader_info &info)
     if (success)
         gl_add_samplers(info.parser_shader_samplers);
 
-    blog(LOG_DEBUG, "arribute size: %d, params size: %d, sampler size: %d", d_ptr->attribs.size(), d_ptr->params.size(), d_ptr->samplers.size());
-
     return success;
 }
 
@@ -149,6 +147,11 @@ std::shared_ptr<gs_shader_param> gs_shader::gs_shader_param_by_unit(int unit)
     }
 
     return nullptr;
+}
+
+const std::vector<std::shared_ptr<gs_sampler_state> > &gs_shader::gs_shader_samplers() const
+{
+    return d_ptr->samplers;
 }
 
 void gs_shader::gs_shader_set_matrix4(const glm::mat4x4 &val)

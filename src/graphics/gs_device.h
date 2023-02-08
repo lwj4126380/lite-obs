@@ -29,13 +29,25 @@ public:
 
     void gs_device_ortho(float left, float right, float top, float bottom, float near, float far);
     void gs_device_set_viewport(int x, int y, int width, int height);
+    void gs_device_get_viewport(gs_rect &rect);
+
+    void gs_device_projection_push();
+    void gs_device_projection_pop();
+
+    std::shared_ptr<gs_texture> gs_device_get_render_target();
+    std::shared_ptr<gs_zstencil_buffer> gs_device_get_zstencil_target();
 
     void gs_device_load_vertexbuffer(std::shared_ptr<gs_vertexbuffer> vb);
     void gs_device_load_indexbuffer(std::shared_ptr<gs_indexbuffer> ib);
 
-    void gs_device_draw(std::shared_ptr<gs_program> program, gs_draw_mode draw_mode, uint32_t start_vert, uint32_t num_verts);
+    void gs_device_set_program(std::shared_ptr<gs_program> program);
+    std::shared_ptr<gs_program> gs_device_program();
+    void gs_device_draw(gs_draw_mode draw_mode, uint32_t start_vert, uint32_t num_verts);
 
     void gs_device_load_texture(std::weak_ptr<gs_texture> p_tex, int unit);
+
+    void gs_device_clear_textures();
+    void gs_device_load_default_pixelshader_samplers();
 
 private:
     std::unique_ptr<gl_platform> gl_platform_create();
