@@ -28,7 +28,7 @@ int os_sem_wait(os_sem_t *sem);
 
 int64_t os_gettime_ns();
 void os_sleep_ms(uint32_t duration);
-
+bool os_sleepto_ns(uint64_t time_target);
 void os_breakpoint(void);
 
 #endif // PLATFORM_H

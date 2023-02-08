@@ -50,6 +50,8 @@ public:
     bool video_output_lock_frame(video_frame *frame, int count, uint64_t timestamp);
     void video_output_unlock_frame();
 
+    uint64_t video_output_get_frame_time();
+
 private:
     void video_thread_internal();
     bool video_output_cur_frame();

@@ -12,25 +12,6 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
-
-        obs_video_info info;
-        info.base_width = 1920;
-        info.base_height = 1080;
-        info.fps_den = 1;
-        info.fps_num = 60;
-        info.output_width = 1920;
-        info.output_height = 1080;
-        info.output_format = video_format::VIDEO_FORMAT_NV12;
-        info.gpu_conversion = true;
-        info.colorspace = video_colorspace::VIDEO_CS_601;
-        info.range = video_range_type::VIDEO_RANGE_PARTIAL;
-        info.scale_type = obs_scale_type::OBS_SCALE_BICUBIC;
-        obs.obs_reset_video(&info);
-
-        std::thread th([](){
-             obs.obs_shutdown();
-        });
-    th.join();
 //    audio_output *output = new audio_output;
 //    audio_output_info info;
 //    info.format = audio_format::AUDIO_FORMAT_16BIT;
@@ -96,6 +77,25 @@ int main(int argc, char *argv[])
 //            QCoreApplication::exit(-1);
 //    }, Qt::QueuedConnection);
     engine.load(url);
+
+    QTimer::singleShot(3000, [](){
+        obs_video_info info;
+        info.base_width = 1920;
+        info.base_height = 1080;
+        info.fps_den = 1;
+        info.fps_num = 60;
+        info.output_width = 1920;
+        info.output_height = 1080;
+        info.output_format = video_format::VIDEO_FORMAT_NV12;
+        info.gpu_conversion = true;
+        info.colorspace = video_colorspace::VIDEO_CS_601;
+        info.range = video_range_type::VIDEO_RANGE_PARTIAL;
+        info.scale_type = obs_scale_type::OBS_SCALE_BICUBIC;
+        obs.obs_reset_video(&info);
+
+        obs.obs_shutdown();
+
+    });
 
     return app.exec();
 }

@@ -123,6 +123,56 @@ void os_sleep_ms(uint32_t duration)
     std::this_thread::sleep_for (std::chrono::milliseconds(duration));
 }
 
+#if defined(WIN32)
+#include <Windows.h>
+bool os_sleepto_ns(uint64_t time_target)
+{
+    uint64_t t = os_gettime_ns();
+    uint32_t milliseconds;
+
+    if (t >= time_target)
+        return false;
+
+    milliseconds = (uint32_t)((time_target - t) / 1000000);
+    if (milliseconds > 1)
+        Sleep(milliseconds - 1);
+
+    for (;;) {
+        t = os_gettime_ns();
+        if (t >= time_target)
+            return true;
+
+#if 0
+        Sleep(1);
+#else
+        Sleep(0);
+#endif
+    }
+}
+#elif defined(__ANDROID__)
+bool os_sleepto_ns(uint64_t time_target)
+{
+    uint64_t current = os_gettime_ns();
+    if (time_target < current)
+        return false;
+
+    time_target -= current;
+
+    struct timespec req, remain;
+    memset(&req, 0, sizeof(req));
+    memset(&remain, 0, sizeof(remain));
+    req.tv_sec = time_target / 1000000000;
+    req.tv_nsec = time_target % 1000000000;
+
+    while (nanosleep(&req, &remain)) {
+        req = remain;
+        memset(&remain, 0, sizeof(remain));
+    }
+
+    return true;
+}
+#endif
+
 void os_breakpoint()
 {
 #ifdef __WIN32

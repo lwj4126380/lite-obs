@@ -24,7 +24,7 @@ public:
     void obs_shutdown();
 
 private:
-    int obs_init_graphics(obs_video_info *ovi);
+    int obs_init_graphics();
 
 private:
     std::unique_ptr<lite_obs_private> d_ptr{};

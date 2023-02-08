@@ -225,6 +225,11 @@ void video_output::video_output_unlock_frame()
     os_sem_post(d_ptr->update_semaphore);
 }
 
+uint64_t video_output::video_output_get_frame_time()
+{
+    return d_ptr->frame_time;
+}
+
 void video_output::video_thread_internal()
 {
     while (os_sem_wait(d_ptr->update_semaphore) == 0) {

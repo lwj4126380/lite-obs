@@ -6,11 +6,30 @@
 #include "media-io/video_output.h"
 #include "media-io/video-matrices.h"
 #include "util/log.h"
+#include "util/threading.h"
+#include "util/circlebuf.h"
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <atomic>
 #include <thread>
 #include <mutex>
+
+struct obs_vframe_info {
+    uint64_t timestamp{};
+    int count{};
+};
+
+struct obs_graphics_context {
+    uint64_t last_time{};
+    uint64_t interval{};
+    uint64_t frame_time_total_ns{};
+    uint64_t fps_total_ns{};
+    uint32_t fps_total_frames{};
+    bool gpu_was_active{};
+    bool raw_was_active{};
+    bool was_active{};
+};
+
 struct lite_obs_core_video_private
 {
     std::unique_ptr<graphics_subsystem> graphics{};
@@ -19,6 +38,15 @@ struct lite_obs_core_video_private
     std::shared_ptr<gs_texture> render_texture{};
     std::shared_ptr<gs_texture> output_texture{};
     std::shared_ptr<gs_texture> convert_textures[NUM_CHANNELS]{};
+
+    bool texture_rendered{};
+    bool textures_copied[NUM_TEXTURES]{};
+    bool texture_converted{};
+    bool using_nv12_tex{};
+    circlebuf vframe_info_buffer{};
+    circlebuf vframe_info_buffer_gpu{};
+
+    int cur_texture{};
 
     std::weak_ptr<gs_stagesurface> mapped_surfaces[NUM_CHANNELS];
 
@@ -90,6 +118,170 @@ void lite_obs_core_video::lite_obs_video_free_data()
     d_ptr->output_texture.reset();
 
     gs_leave_context();
+}
+
+void lite_obs_core_video::clear_base_frame_data(void)
+{
+    d_ptr->texture_rendered = false;
+    d_ptr->texture_converted = false;
+    circlebuf_free(&d_ptr->vframe_info_buffer);
+    d_ptr->cur_texture = 0;
+}
+
+void lite_obs_core_video::clear_raw_frame_data(void)
+{
+    memset(d_ptr->textures_copied, 0, sizeof(d_ptr->textures_copied));
+    circlebuf_free(&d_ptr->vframe_info_buffer);
+}
+
+void lite_obs_core_video::clear_gpu_frame_data(void)
+{
+    circlebuf_free(&d_ptr->vframe_info_buffer_gpu);
+}
+
+void lite_obs_core_video::video_sleep(bool raw_active, const bool gpu_active, uint64_t *p_time, uint64_t interval_ns)
+{
+    obs_vframe_info vframe_info;
+    uint64_t cur_time = *p_time;
+    uint64_t t = cur_time + interval_ns;
+    int count;
+
+    if (os_sleepto_ns(t)) {
+        *p_time = t;
+        count = 1;
+    } else {
+        count = (int)((os_gettime_ns() - cur_time) / interval_ns);
+        *p_time = cur_time + interval_ns * count;
+    }
+
+    d_ptr->total_frames += count;
+    d_ptr->lagged_frames += count - 1;
+
+    vframe_info.timestamp = cur_time;
+    vframe_info.count = count;
+
+    if (raw_active)
+        circlebuf_push_back(&d_ptr->vframe_info_buffer, &vframe_info, sizeof(vframe_info));
+
+    if (gpu_active)
+        circlebuf_push_back(&d_ptr->vframe_info_buffer_gpu, &vframe_info, sizeof(vframe_info));
+}
+
+void lite_obs_core_video::render_video(bool raw_active, const bool gpu_active, int cur_texture, int prev_texture)
+{
+
+}
+
+bool lite_obs_core_video::download_frame(int prev_texture, video_data *frame)
+{
+
+    return true;
+}
+
+void lite_obs_core_video::output_video_data(video_data *input_frame, int count)
+{
+
+}
+
+void lite_obs_core_video::output_frame(bool raw_active, const bool gpu_active)
+{
+    int cur_texture = d_ptr->cur_texture;
+    int prev_texture = cur_texture == 0 ? NUM_TEXTURES - 1 : cur_texture - 1;
+
+    video_data frame;
+    bool frame_ready = 0;
+    struct obs_source *temp;
+
+    memset(&frame, 0, sizeof(struct video_data));
+
+    gs_enter_contex(d_ptr->graphics);
+
+    render_video(raw_active, gpu_active, cur_texture, prev_texture);
+
+    if (raw_active) {
+        frame_ready = download_frame(prev_texture, &frame);
+    }
+
+    gs_flush();
+
+    gs_leave_context();
+
+    if (raw_active && frame_ready) {
+        struct obs_vframe_info vframe_info;
+        circlebuf_pop_front(&d_ptr->vframe_info_buffer, &vframe_info, sizeof(vframe_info));
+
+        frame.timestamp = vframe_info.timestamp;
+        output_video_data(&frame, vframe_info.count);
+    }
+
+    if (++d_ptr->cur_texture == NUM_TEXTURES)
+        d_ptr->cur_texture = 0;
+}
+
+bool lite_obs_core_video::graphics_loop(obs_graphics_context *context)
+{
+    const bool stop_requested = d_ptr->video->video_output_stopped();
+
+    uint64_t frame_start = os_gettime_ns();
+    uint64_t frame_time_ns;
+    bool raw_active = d_ptr->raw_active > 0;
+    const bool gpu_active = d_ptr->gpu_encoder_active > 0;
+    const bool active = raw_active || gpu_active;
+
+    if (!context->was_active && active)
+        clear_base_frame_data();
+    if (!context->raw_was_active && raw_active)
+        clear_raw_frame_data();
+    if (!context->gpu_was_active && gpu_active)
+        clear_gpu_frame_data();
+
+    context->gpu_was_active = gpu_active;
+    context->raw_was_active = raw_active;
+    context->was_active = active;
+
+    output_frame(raw_active, gpu_active);
+
+    frame_time_ns = os_gettime_ns() - frame_start;
+
+    video_sleep(raw_active, gpu_active, &d_ptr->video_time, context->interval);
+
+    context->frame_time_total_ns += frame_time_ns;
+    context->fps_total_ns += (d_ptr->video_time - context->last_time);
+    context->fps_total_frames++;
+
+    if (context->fps_total_ns >= 1000000000ULL) {
+        d_ptr->video_fps = (double)context->fps_total_frames / ((double)context->fps_total_ns / 1000000000.0);
+        d_ptr->video_avg_frame_time_ns = context->frame_time_total_ns / (uint64_t)context->fps_total_frames;
+
+        context->frame_time_total_ns = 0;
+        context->fps_total_ns = 0;
+        context->fps_total_frames = 0;
+    }
+
+    return !stop_requested;
+}
+
+void lite_obs_core_video::graphics_thread_internal()
+{
+    const uint64_t interval = d_ptr->video->video_output_get_frame_time();
+
+    d_ptr->video_time = os_gettime_ns();
+    d_ptr->video_frame_interval_ns = interval;
+
+    srand((unsigned int)time(NULL));
+
+    obs_graphics_context context;
+    context.interval = interval;
+    context.frame_time_total_ns = 0;
+    context.fps_total_ns = 0;
+    context.fps_total_frames = 0;
+    context.last_time = 0;
+    context.gpu_was_active = false;
+    context.raw_was_active = false;
+    context.was_active = false;
+
+    while (graphics_loop(&context))
+        ;
 }
 
 void lite_obs_core_video::graphics_thread(void *param)
@@ -266,11 +458,6 @@ bool lite_obs_core_video::init_textures()
         return false;
 
     return true;
-}
-
-void lite_obs_core_video::graphics_thread_internal()
-{
-
 }
 
 int lite_obs_core_video::lite_obs_init_graphics()

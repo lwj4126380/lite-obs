@@ -580,3 +580,11 @@ std::shared_ptr<gs_zstencil_buffer> gs_get_zstencil_target()
 
     return thread_graphics->d_ptr->device->gs_device_get_zstencil_target();
 }
+
+void gs_flush()
+{
+    if (!gs_valid("gs_flush"))
+        return;
+
+    glFlush();
+}

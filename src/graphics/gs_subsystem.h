@@ -48,6 +48,7 @@ void gs_ortho(float left, float right, float top, float bottom, float znear, flo
 void gs_set_viewport(int x, int y, int width, int height);
 void gs_get_viewport(gs_rect &rect);
 void gs_clear(uint32_t clear_flags, glm::vec4 *color, float depth, uint8_t stencil);
+void gs_flush();
 void gs_set_render_size(uint32_t width, uint32_t height);
 void gs_set_render_target(std::shared_ptr<gs_texture> tex, std::shared_ptr<gs_zstencil_buffer> zs);
 void gs_set_cur_effect(std::shared_ptr<gs_program> program);

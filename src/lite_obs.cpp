@@ -123,203 +123,109 @@ void lite_obs::obs_shutdown()
 #include <QImage>
 #include <QElapsedTimer>
 #include <glm/vec4.hpp>
-int lite_obs::obs_init_graphics(obs_video_info *ovi)
+int lite_obs::obs_init_graphics()
 {
-    std::thread th([](){
-        auto gl = std::make_unique<graphics_subsystem>();
-        auto errcode = gl->gs_create();
-        if (errcode != GS_SUCCESS) {
-            blog(LOG_DEBUG, "obs_init_graphics fail.");
-            return;
-        }
+//    gs_enter_contex(d_ptr->video.lite_obs_graphics());
+//        auto target = std::make_shared<gs_texture_render>(gs_color_format::GS_RGBA, gs_zstencil_format::GS_ZS_NONE);
+//        target->gs_texrender_reset();
 
-        //d_ptr->video.graphics = std::move(gl);
-        gs_enter_contex(gl);
+//        target->gs_texrender_begin(640, 360);
 
-        QElapsedTimer t;
-        t.start();
-        auto res = gl->gs_effect_init();
-        qDebug() << t.elapsed();
-        if (res != GS_SUCCESS) {
-            gs_leave_context();
-            return;
-        }
+//        QFile file(":/640-360-420.yuv");
+//        file.open(QFile::ReadOnly);
+//        QByteArray data = file.readAll();
+//        file.close();
 
+//        auto y_tex = gs_texture_create(640, 360, gs_color_format::GS_R8, 1, nullptr, GS_DYNAMIC);
+//        auto u_tex = gs_texture_create(320, 180, gs_color_format::GS_R8, 1, nullptr, GS_DYNAMIC);
+//        auto v_tex = gs_texture_create(320, 180, gs_color_format::GS_R8, 1, nullptr, GS_DYNAMIC);
 
-//        QImage image(":/test.jpg");
-//        image = image.convertToFormat(QImage::Format_RGBA8888);
+//        y_tex->gs_texture_set_image((const uint8_t *)data.data(), 640, false);
+//        u_tex->gs_texture_set_image((const uint8_t *)(data.data()+640*360), 320, false);
+//        v_tex->gs_texture_set_image((const uint8_t *)(data.data()+640*360 + 640*360/4), 320, false);
 
-//        auto bits = image.bits();
-//        auto img_tex = gs_texture_create(image.width(), image.height(), gs_color_format::GS_RGBA, 1, (const uint8_t **)&bits, 0);
-
-        auto target = std::make_shared<gs_texture_render>(gs_color_format::GS_RGBA, gs_zstencil_format::GS_ZS_NONE);
-        target->gs_texrender_reset();
-
-        target->gs_texrender_begin(640, 360);
-
-//        glm::vec4 clear_color{0.0f, 0.0f, 1.0f, 0.0f};
-
-//        gs_clear(GS_CLEAR_COLOR, &clear_color, 1.0f, 0);
-
-//        gs_set_render_size(640, 360);
-
-        QFile file(":/640-360-420.yuv");
-        file.open(QFile::ReadOnly);
-        QByteArray data = file.readAll();
-        file.close();
-
-        auto y_tex = gs_texture_create(640, 360, gs_color_format::GS_R8, 1, nullptr, GS_DYNAMIC);
-        auto u_tex = gs_texture_create(320, 180, gs_color_format::GS_R8, 1, nullptr, GS_DYNAMIC);
-        auto v_tex = gs_texture_create(320, 180, gs_color_format::GS_R8, 1, nullptr, GS_DYNAMIC);
-
-        y_tex->gs_texture_set_image((const uint8_t *)data.data(), 640, false);
-        u_tex->gs_texture_set_image((const uint8_t *)(data.data()+640*360), 320, false);
-        v_tex->gs_texture_set_image((const uint8_t *)(data.data()+640*360 + 640*360/4), 320, false);
-
-        auto program = gl->gs_get_effect_by_name("I420_Reverse");
-        gs_set_cur_effect(program);
-
-        float float_range_min[3] = {16.0f / 255.0f, 16.0f / 255.0f, 16.0f / 255.0f};
-        float float_range_max[3] = {235.0f / 255.0f, 240.0f / 255.0f, 240.0f / 255.0f};
-        float matrix[2][16] = {{1.164384f, 0.000000f, 1.596027f, -0.874202f, 1.164384f, -0.391762f,
-                                -0.812968f, 0.531668f, 1.164384f, 2.017232f, 0.000000f, -1.085631f,
-                                0.000000f, 0.000000f, 0.000000f, 1.000000f},
-                               {1.000000f, 0.000000f, 1.407520f, -0.706520f, 1.000000f, -0.345491f,
-                                -0.716948f, 0.533303f, 1.000000f, 1.778976f, 0.000000f, -0.892976f,
-                                0.000000f, 0.000000f, 0.000000f, 1.000000f}};
-
-        glm::vec4 vec0 = {matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3]};
-        glm::vec4 vec1 = {matrix[0][4], matrix[0][5], matrix[0][6], matrix[0][7]};
-        glm::vec4 vec2 = {matrix[0][8], matrix[0][9], matrix[0][10], matrix[0][11]};
-
-        gs_enable_blending(false);
-
-        gs_technique_begin();
-
-        program->gs_effect_set_texture("image", y_tex);
-        program->gs_effect_set_texture("image1", u_tex);
-        program->gs_effect_set_texture("image2", v_tex);
-
-        float cx = 640.0f;
-        float cy = 360.0f;
-        program->gs_effect_set_param("width", cx);
-        program->gs_effect_set_param("height", cy);
-        program->gs_effect_set_param("width_d2", cx * 0.5f);
-        program->gs_effect_set_param("height_d2", cy * 0.5f);
-        program->gs_effect_set_param("width_x2_i", 0.5f / cx);
-
-        program->gs_effect_set_param("color_vec0", vec0);
-        program->gs_effect_set_param("color_vec1", vec1);
-        program->gs_effect_set_param("color_vec2", vec2);
-
-        program->gs_effect_set_param("color_range_min", float_range_min, sizeof(float) * 3);
-        program->gs_effect_set_param("color_range_max", float_range_max, sizeof(float) * 3);
-
-        gs_draw(gs_draw_mode::GS_TRIS, 0, 3);
-
-        gs_technique_end();
-
-        gs_enable_blending(true);
-
-
-//        auto program = gl->gs_get_effect_by_name("Draw");
+//        auto program = d_ptr->video.lite_obs_graphics()->gs_get_effect_by_name("I420_Reverse");
 //        gs_set_cur_effect(program);
 
-//        program->gs_effect_set_texture("image", img_tex);
+//        float float_range_min[3] = {16.0f / 255.0f, 16.0f / 255.0f, 16.0f / 255.0f};
+//        float float_range_max[3] = {235.0f / 255.0f, 240.0f / 255.0f, 240.0f / 255.0f};
+//        float matrix[2][16] = {{1.164384f, 0.000000f, 1.596027f, -0.874202f, 1.164384f, -0.391762f,
+//                                -0.812968f, 0.531668f, 1.164384f, 2.017232f, 0.000000f, -1.085631f,
+//                                0.000000f, 0.000000f, 0.000000f, 1.000000f},
+//                               {1.000000f, 0.000000f, 1.407520f, -0.706520f, 1.000000f, -0.345491f,
+//                                -0.716948f, 0.533303f, 1.000000f, 1.778976f, 0.000000f, -0.892976f,
+//                                0.000000f, 0.000000f, 0.000000f, 1.000000f}};
 
-//        gl->gs_draw_sprite(img_tex, 0, 1005, 792);
+//        glm::vec4 vec0 = {matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3]};
+//        glm::vec4 vec1 = {matrix[0][4], matrix[0][5], matrix[0][6], matrix[0][7]};
+//        glm::vec4 vec2 = {matrix[0][8], matrix[0][9], matrix[0][10], matrix[0][11]};
 
-        glFlush();
+//        gs_enable_blending(false);
 
-        auto copy = std::make_shared<gs_stagesurface>();
-        if (copy->gs_stagesurface_create(640, 360, gs_color_format::GS_RGBA)) {
-            copy->gs_stagesurface_stage_texture(target->gs_texrender_get_texture());
-            uint8_t *data = nullptr;
-            uint32_t linesize = 0;
-            if (copy->gs_stagesurface_map(&data, &linesize)) {
+//        gs_technique_begin();
 
-                QFile f("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/files/500.rgba");
-                f.open(QFile::ReadWrite);
-                f.write((char *)data, 640*360*4);
-                f.close();
+//        program->gs_effect_set_texture("image", y_tex);
+//        program->gs_effect_set_texture("image1", u_tex);
+//        program->gs_effect_set_texture("image2", v_tex);
 
-                copy->gs_stagesurface_unmap();
-            }
-        }
+//        float cx = 640.0f;
+//        float cy = 360.0f;
+//        program->gs_effect_set_param("width", cx);
+//        program->gs_effect_set_param("height", cy);
+//        program->gs_effect_set_param("width_d2", cx * 0.5f);
+//        program->gs_effect_set_param("height_d2", cy * 0.5f);
+//        program->gs_effect_set_param("width_x2_i", 0.5f / cx);
 
-        target->gs_texrender_end();
+//        program->gs_effect_set_param("color_vec0", vec0);
+//        program->gs_effect_set_param("color_vec1", vec1);
+//        program->gs_effect_set_param("color_vec2", vec2);
 
-        copy.reset();
-        target.reset();
-        y_tex.reset();
-        u_tex.reset();
-        v_tex.reset();
-//        img_tex.reset();
+//        program->gs_effect_set_param("color_range_min", float_range_min, sizeof(float) * 3);
+//        program->gs_effect_set_param("color_range_max", float_range_max, sizeof(float) * 3);
 
-        gs_leave_context();
-    });
+//        gs_draw(gs_draw_mode::GS_TRIS, 0, 3);
 
-    th.join();
-    /*
-//             * Create an OpenGL framebuffer as render target.
-//             */
-//            GLuint frameBuffer;
-//            glGenFramebuffers(1, &frameBuffer);
-//            glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-//            assertOpenGLError("glBindFramebuffer");
+//        gs_technique_end();
 
-
-//            /*
-//             * Create a texture as color attachment.
-//             */
-//            GLuint t;
-//            glGenTextures(1, &t);
-
-//            glBindTexture(GL_TEXTURE_2D, t);
-//            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 500, 500, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-//            assertOpenGLError("glTexImage2D");
-
-//            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-//            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-//            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-//            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+//        gs_enable_blending(true);
 
 
-//            /*
-//             * Attach the texture to the framebuffer.
-//             */
-//            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t, 0);
-//            assertOpenGLError("glFramebufferTexture2D");
+////        auto program = gl->gs_get_effect_by_name("Draw");
+////        gs_set_cur_effect(program);
 
+////        program->gs_effect_set_texture("image", img_tex);
 
-//            /*
-//             * Render something.
-//             */
-//            glClearColor(1.0, 0.0, 0.0, 1.0);
-//            glClear(GL_COLOR_BUFFER_BIT);
-//            glFlush();
+////        gl->gs_draw_sprite(img_tex, 0, 1005, 792);
 
-//            char *image_data = (char*)malloc(500 * 500 * 4);
-//            memset(image_data, 0, 500 * 500 * 4);
-//            //glReadBuffer(GL_COLOR_ATTACHMENT0);
-//            glReadPixels(0, 0, 500, 500, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
-//            assertOpenGLError("glReadPixels");
+//        glFlush();
 
-//            QDir dir;
-//            dir.mkpath("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/cache");
-//            QFile f("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/files/500.rgba");
-//            f.open(QFile::ReadWrite);
-//            f.write(image_data, 500*500*4);
-//            f.close();
+//        auto copy = std::make_shared<gs_stagesurface>();
+//        if (copy->gs_stagesurface_create(640, 360, gs_color_format::GS_RGBA)) {
+//            copy->gs_stagesurface_stage_texture(target->gs_texrender_get_texture());
+//            uint8_t *data = nullptr;
+//            uint32_t linesize = 0;
+//            if (copy->gs_stagesurface_map(&data, &linesize)) {
 
-//            free(image_data);
+//                QFile f("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/files/600.rgba");
+//                f.remove();
+//                f.open(QFile::ReadWrite);
+//                f.write((char *)data, 640*360*4);
+//                f.close();
 
-//            /*
-//             * Destroy context.
-//             */
-//            glDeleteFramebuffers(1, &frameBuffer);
-//            glDeleteTextures(1, &t);
+//                copy->gs_stagesurface_unmap();
+//            }
+//        }
 
+//        target->gs_texrender_end();
+
+//        copy.reset();
+//        target.reset();
+//        y_tex.reset();
+//        u_tex.reset();
+//        v_tex.reset();
+////        img_tex.reset();
+
+//        gs_leave_context();
 
     return true;
 }

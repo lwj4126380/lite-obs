@@ -4,6 +4,7 @@
 #include "lite_obs.h"
 
 struct lite_obs_core_video_private;
+struct obs_graphics_context;
 class lite_obs_core_video
 {
 public:
@@ -32,6 +33,16 @@ private:
     bool init_gpu_copy_surface(size_t i);
     bool init_textures();
 
+    void clear_base_frame_data(void);
+    void clear_raw_frame_data(void);
+    void clear_gpu_frame_data(void);
+
+    void video_sleep(bool raw_active, const bool gpu_active, uint64_t *p_time, uint64_t interval_ns);
+    void render_video(bool raw_active, const bool gpu_active, int cur_texture, int prev_texture);
+    bool download_frame(int prev_texture, struct video_data *frame);
+    void output_video_data(video_data *input_frame, int count);
+    void output_frame(bool raw_active, const bool gpu_active);
+    bool graphics_loop(obs_graphics_context *context);
     void graphics_thread_internal();
 
 private:
