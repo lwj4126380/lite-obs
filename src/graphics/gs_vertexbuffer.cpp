@@ -15,6 +15,22 @@ struct gs_vertexbuffer_private
     size_t num{};
     bool dynamic{};
     std::shared_ptr<gs_vb_data> data{};
+
+    ~gs_vertexbuffer_private() {
+        if (vertex_buffer)
+            gl_delete_buffers(1, &vertex_buffer);
+        if (normal_buffer)
+            gl_delete_buffers(1, &normal_buffer);
+        if (tangent_buffer)
+            gl_delete_buffers(1, &tangent_buffer);
+        if (color_buffer)
+            gl_delete_buffers(1, &color_buffer);
+        if (uv_buffers.size())
+            gl_delete_buffers((GLsizei)uv_buffers.size(), uv_buffers.data());
+
+        if (vao)
+            gl_delete_vertex_arrays(1, &vao);
+    }
 };
 
 gs_vertexbuffer::gs_vertexbuffer()
@@ -39,7 +55,7 @@ gs_vertexbuffer::~gs_vertexbuffer()
     if (d_ptr->vao)
         gl_delete_vertex_arrays(1, &d_ptr->vao);
 
-    blog(LOG_DEBUG, "~gs_vertexbuffer ----> destroy.");
+    blog(LOG_DEBUG, "gs_vertexbuffer destroyed.");
 }
 
 bool gs_vertexbuffer::create_buffers()

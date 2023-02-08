@@ -12,12 +12,12 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Quick)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Quick)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-#set(DepsPath "D:/xxq-obs-deps")
-#find_package(FFmpeg REQUIRED
-#        COMPONENTS avformat avutil swscale swresample
-#        OPTIONAL_COMPONENTS avcodec)
-#include_directories(${FFMPEG_INCLUDE_DIRS})
-include_directories("C:/Users/luweijia/Downloads/ffmpeg-4.4-android-lite.tar/ffmpeg-4.4-android-lite/include")
+set(DepsPath "D:/xxq-obs-deps")
+find_package(FFmpeg REQUIRED
+        COMPONENTS avformat avutil swscale swresample
+        OPTIONAL_COMPONENTS avcodec)
+include_directories(${FFMPEG_INCLUDE_DIRS})
+#include_directories("C:/Users/luweijia/Downloads/ffmpeg-4.4-android-lite.tar/ffmpeg-4.4-android-lite/include")
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/third-party)
 
@@ -36,16 +36,17 @@ set(liteobs_util_SOURCES
 )
 
 set(liteobs_HEADERS
-    media-io-defs.h
+    media-io/media-io-defs.h
 
-#    audio_info.h
-#    audio_resampler.h
-#    audio_output.h
+    media-io/audio_info.h
+    media-io/audio_resampler.h
+    media-io/audio_output.h
 
-#    video_info.h
-#    video_scaler.h
-#    video_frame.h
-#    video_output.h
+    media-io/video_info.h
+    media-io/video_scaler.h
+    media-io/video_frame.h
+    media-io/video_output.h
+    media-io/video-matrices.h
 
     lite_source.h
     lite_output.h
@@ -53,17 +54,21 @@ set(liteobs_HEADERS
 
     lite_obs_core_video.h
 
+
+    obs-defs.h
     lite-obs2_global.h
+    lite_obs_info.h
     lite_obs.h
 )
 
 set(liteobs_SOURCES
-#    audio_resampler.cpp
-#    audio_output.cpp
+    media-io/audio_resampler.cpp
+    media-io/audio_output.cpp
 
-#    video_scaler.cpp
-#    video_frame.cpp
-#    video_output.cpp
+    media-io/video_scaler.cpp
+    media-io/video_frame.cpp
+    media-io/video_output.cpp
+    media-io/video-matrices.cpp
 
     lite_source.cpp
     lite_output.cpp
@@ -124,7 +129,7 @@ target_link_libraries(lite-obs
 #    "C:/Users/luweijia/Downloads/ffmpeg-4.4-android-lite.tar/ffmpeg-4.4-android-lite/bin/libswscale.so"
 #    "C:/Users/luweijia/Downloads/ffmpeg-4.4-android-lite.tar/ffmpeg-4.4-android-lite/bin/libswresample.so"
 #    "C:/Users/luweijia/Downloads/ffmpeg-4.4-android-lite.tar/ffmpeg-4.4-android-lite/bin/libavutil.so"
-#    ${FFMPEG_LIBRARIES}
+    ${FFMPEG_LIBRARIES}
 )
 
 

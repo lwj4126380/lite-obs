@@ -92,7 +92,7 @@ gs_device::gs_device()
 
 gs_device::~gs_device()
 {
-
+    blog(LOG_DEBUG, "gs_device destroyed.");
 }
 
 int gs_device::device_create()
@@ -123,6 +123,14 @@ int gs_device::device_create()
     return GS_SUCCESS;
 }
 
+void gs_device::device_destroy()
+{
+    if (d_ptr->empty_vao) {
+        gl_delete_vertex_arrays(1, &d_ptr->empty_vao);
+        d_ptr->empty_vao = 0;
+    }
+}
+
 void gs_device::device_enter_context()
 {
     if (!d_ptr->plat)
@@ -134,8 +142,10 @@ void gs_device::device_enter_context()
     }
 #elif defined WIN32
     HDC hdc = d_ptr->plat->window.hdc;
-    if (!wglMakeCurrent(hdc, d_ptr->plat->hrc))
+    if (!wglMakeCurrent(hdc, d_ptr->plat->hrc)) {
+        auto err = GetLastError();
         blog(LOG_ERROR, "device_enter_context (GL) failed");
+    }
 #endif
 }
 
@@ -147,7 +157,8 @@ void gs_device::device_leave_context()
 #if defined __ANDROID
     eglMakeCurrent(d_ptr->plat->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT );
 #elif defined WIN32
-    wglMakeCurrent(NULL, NULL);
+    if (!wglMakeCurrent(NULL, NULL))
+        blog(LOG_DEBUG, "+++++++++++++++");
 #endif
 }
 
@@ -338,11 +349,11 @@ void gs_device::gs_device_projection_push()
 
 void gs_device::gs_device_projection_pop()
 {
-        if (d_ptr->proj_stack.empty())
-            return;
+    if (d_ptr->proj_stack.empty())
+        return;
 
-        d_ptr->cur_proj = d_ptr->proj_stack.back();
-        d_ptr->proj_stack.pop_back();
+    d_ptr->cur_proj = d_ptr->proj_stack.back();
+    d_ptr->proj_stack.pop_back();
 }
 
 std::shared_ptr<gs_texture> gs_device::gs_device_get_render_target()
@@ -422,12 +433,12 @@ void gs_device::gs_device_draw(gs_draw_mode draw_mode, uint32_t start_vert, uint
     program->gs_effect_upload_parameters(true);
 
     if (ib) { // todo indexbuffer
-//        if (num_verts == 0)
-//            num_verts = (uint32_t)device->cur_index_buffer->num;
-//        glDrawElements(topology, num_verts, ib->gl_type,
-//                       (const GLvoid *)(start_vert * ib->width));
-//        if (!gl_success("glDrawElements"))
-//            goto fail;
+        //        if (num_verts == 0)
+        //            num_verts = (uint32_t)device->cur_index_buffer->num;
+        //        glDrawElements(topology, num_verts, ib->gl_type,
+        //                       (const GLvoid *)(start_vert * ib->width));
+        //        if (!gl_success("glDrawElements"))
+        //            goto fail;
 
     } else {
         if (num_verts == 0)

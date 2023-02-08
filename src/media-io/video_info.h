@@ -40,6 +40,33 @@ enum class video_format {
     VIDEO_FORMAT_AYUV,
 };
 
+static inline bool format_is_yuv(video_format format)
+{
+    switch (format) {
+    case video_format::VIDEO_FORMAT_I420:
+    case video_format::VIDEO_FORMAT_NV12:
+    case video_format::VIDEO_FORMAT_I422:
+    case video_format::VIDEO_FORMAT_YVYU:
+    case video_format::VIDEO_FORMAT_YUY2:
+    case video_format::VIDEO_FORMAT_UYVY:
+    case video_format::VIDEO_FORMAT_I444:
+    case video_format::VIDEO_FORMAT_I40A:
+    case video_format::VIDEO_FORMAT_I42A:
+    case video_format::VIDEO_FORMAT_YUVA:
+    case video_format::VIDEO_FORMAT_AYUV:
+        return true;
+    case video_format::VIDEO_FORMAT_NONE:
+    case video_format::VIDEO_FORMAT_RGBA:
+    case video_format::VIDEO_FORMAT_BGRA:
+    case video_format::VIDEO_FORMAT_BGRX:
+    case video_format::VIDEO_FORMAT_Y800:
+    case video_format::VIDEO_FORMAT_BGR3:
+        return false;
+    }
+
+    return false;
+}
+
 enum class video_colorspace {
     VIDEO_CS_DEFAULT,
     VIDEO_CS_601,

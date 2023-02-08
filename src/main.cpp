@@ -1,5 +1,3 @@
-#include "audio_output.h"
-#include "audio_resampler.h"
 #include <QDebug>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -7,19 +5,32 @@
 #include <thread>
 #include <QElapsedTimer>
 #include <QFile>
-#include "util/threading.h"
-#include "video_frame.h"
-#include "video_output.h"
-#include "lite_source.h"
 #include "lite_obs.h"
+#include "graphics/gs_device.h"
 
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
-    obs_video_info ovi;
-    obs.obs_reset_video(&ovi);
 
+        obs_video_info info;
+        info.base_width = 1920;
+        info.base_height = 1080;
+        info.fps_den = 1;
+        info.fps_num = 60;
+        info.output_width = 1920;
+        info.output_height = 1080;
+        info.output_format = video_format::VIDEO_FORMAT_NV12;
+        info.gpu_conversion = true;
+        info.colorspace = video_colorspace::VIDEO_CS_601;
+        info.range = video_range_type::VIDEO_RANGE_PARTIAL;
+        info.scale_type = obs_scale_type::OBS_SCALE_BICUBIC;
+        obs.obs_reset_video(&info);
+
+        std::thread th([](){
+             obs.obs_shutdown();
+        });
+    th.join();
 //    audio_output *output = new audio_output;
 //    audio_output_info info;
 //    info.format = audio_format::AUDIO_FORMAT_16BIT;

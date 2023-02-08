@@ -1,5 +1,4 @@
 #include "lite_obs.h"
-#include "util/log.h"
 #include <mutex>
 #include <list>
 
@@ -9,6 +8,8 @@
 #include "graphics/gs_program.h"
 #include "graphics/gs_stagesurf.h"
 
+#include "util/log.h"
+#include "obs-defs.h"
 #include "lite_obs_core_video.h"
 
 lite_obs obs;
@@ -67,10 +68,56 @@ void lite_obs::remove_source(std::shared_ptr<lite_source> source)
     }
 }
 
+#define OBS_SIZE_MIN 2
+#define OBS_SIZE_MAX (32 * 1024)
+
+static inline bool size_valid(uint32_t width, uint32_t height)
+{
+    return (width >= OBS_SIZE_MIN && height >= OBS_SIZE_MIN &&
+        width <= OBS_SIZE_MAX && height <= OBS_SIZE_MAX);
+}
+
 int lite_obs::obs_reset_video(obs_video_info *ovi)
 {
-    return obs_init_graphics(ovi);
+    if (d_ptr->video.lite_obs_video_active())
+        return OBS_VIDEO_CURRENTLY_ACTIVE;
+
+    if (!size_valid(ovi->output_width, ovi->output_height) ||
+            !size_valid(ovi->base_width, ovi->base_height))
+            return OBS_VIDEO_INVALID_PARAM;
+
+    d_ptr->video.lite_obs_stop_video();
+    d_ptr->video.lite_obs_video_free_data();
+
+    ovi->output_width &= 0xFFFFFFFC;
+    ovi->output_height &= 0xFFFFFFFE;
+
+    auto errorcode = d_ptr->video.lite_obs_init_graphics();
+    if (errorcode != OBS_VIDEO_SUCCESS) {
+        d_ptr->video.lite_obs_free_graphics();
+        return errorcode;
+    }
+
+    return d_ptr->video.lite_obs_core_video_init(ovi);
 }
+
+void lite_obs::obs_shutdown()
+{
+    d_ptr->video.lite_obs_stop_video();
+//    stop_audio();
+
+//    obs_free_audio();
+//    obs_free_data();
+    d_ptr->video.lite_obs_video_free_data();
+//    obs_rtc_capture_free(true);
+//    obs_free_hotkeys();
+    d_ptr->video.lite_obs_free_graphics();
+//    proc_handler_destroy(obs->procs);
+//    signal_handler_destroy(obs->signals);
+//    obs->procs = NULL;
+//    obs->signals = NULL;
+}
+
 #include <thread>
 #include <QFile>
 #include <QImage>

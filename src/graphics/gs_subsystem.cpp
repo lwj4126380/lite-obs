@@ -58,6 +58,15 @@ struct graphics_subsystem_private
 
     std::recursive_mutex mutex;
     std::atomic_long ref{};
+
+    ~graphics_subsystem_private() {
+        device->device_enter_context();
+        sprite_buffer.reset();
+        effects.clear();
+        device->device_destroy();
+        device->device_leave_context();
+        device.reset();
+    }
 };
 
 static thread_local graphics_subsystem *thread_graphics = NULL;
@@ -86,11 +95,11 @@ graphics_subsystem::~graphics_subsystem()
     if (d_ptr->device) {
 
         thread_graphics = this;
-        d_ptr->device->device_enter_context();
-        d_ptr->sprite_buffer.reset();
         d_ptr.reset();
         thread_graphics = nullptr;
     }
+
+    blog(LOG_DEBUG, "graphics_subsystem destroyed.");
 }
 
 int graphics_subsystem::gs_create()

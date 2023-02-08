@@ -24,6 +24,13 @@ struct gs_program_private
 
     std::vector<program_param> params{};
     std::vector<GLint> attribs{};
+
+    ~gs_program_private() {
+        if (obj) {
+            glDeleteProgram(obj);
+            gl_success("glDeleteProgram");
+        }
+    }
 };
 
 gs_program::gs_program()
@@ -33,8 +40,7 @@ gs_program::gs_program()
 
 gs_program::~gs_program()
 {
-    glDeleteProgram(d_ptr->obj);
-    gl_success("glDeleteProgram");
+    blog(LOG_DEBUG, "gs_program destroyed.");
 }
 
 static void print_link_errors(GLuint program)

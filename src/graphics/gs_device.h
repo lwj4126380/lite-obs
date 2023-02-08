@@ -18,6 +18,7 @@ public:
     ~gs_device();
 
     int device_create();
+    void device_destroy();
 
     void device_enter_context();
     void device_leave_context();

@@ -97,6 +97,8 @@ gs_texture::~gs_texture()
 
     if (d_ptr->base.texture)
         gl_delete_textures(1, &d_ptr->base.texture);
+
+    blog(LOG_DEBUG, "gs_texture destroyed.");
 }
 
 bool gs_texture::create(uint32_t width, uint32_t height, gs_color_format color_format, uint32_t levels, const uint8_t **data, uint32_t flags)

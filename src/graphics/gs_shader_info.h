@@ -67,6 +67,5 @@ struct gs_shader_param {
     bool changed{};
 
     ~gs_shader_param() {
-        blog(LOG_DEBUG, "gs_shader_param ------> destroy.");
     }
 };

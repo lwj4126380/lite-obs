@@ -2,7 +2,7 @@
 
 #include <memory>
 #include <string>
-#include "audio_output.h"
+#include "media-io/audio_output.h"
 
 enum class obs_source_type {
     OBS_SOURCE_TYPE_INPUT,

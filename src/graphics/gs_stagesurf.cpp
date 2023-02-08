@@ -15,6 +15,11 @@ struct gs_stagesurface_private
     GLint gl_internal_format{};
     GLenum gl_type{};
     GLuint pack_buffer{};
+
+    ~gs_stagesurface_private() {
+        if (pack_buffer)
+            gl_delete_buffers(1, &pack_buffer);
+    }
 };
 
 gs_stagesurface::gs_stagesurface()
@@ -24,7 +29,7 @@ gs_stagesurface::gs_stagesurface()
 
 gs_stagesurface::~gs_stagesurface()
 {
-
+    blog(LOG_DEBUG, "gs_stagesurface destroyed.");
 }
 
 bool gs_stagesurface::create_pixel_pack_buffer()
@@ -209,4 +214,13 @@ void gs_stagesurface::gs_stagesurface_unmap()
     gl_success("glUnmapBuffer");
 
     gl_bind_buffer(GL_PIXEL_PACK_BUFFER, 0);
+}
+
+std::shared_ptr<gs_stagesurface> gs_stagesurface_create(uint32_t width, uint32_t height, gs_color_format color_format)
+{
+    auto surface = std::make_shared<gs_stagesurface>();
+    if (!surface->gs_stagesurface_create(width, height, color_format))
+        return nullptr;
+
+    return surface;
 }

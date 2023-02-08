@@ -28,3 +28,5 @@ private:
 private:
     std::unique_ptr<gs_stagesurface_private> d_ptr{};
 };
+
+std::shared_ptr<gs_stagesurface> gs_stagesurface_create(uint32_t width, uint32_t height, gs_color_format color_format);

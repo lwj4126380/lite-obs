@@ -21,6 +21,13 @@ struct gs_shader_private
     std::vector<std::shared_ptr<gs_shader_param>> params{};
 
     std::vector<std::shared_ptr<gs_sampler_state>> samplers;
+
+    ~gs_shader_private() {
+        if (obj) {
+            glDeleteShader(obj);
+            gl_success("glDeleteShader");
+        }
+    }
 };
 
 static inline GLenum convert_shader_type(gs_shader_type type)
@@ -42,10 +49,7 @@ gs_shader::gs_shader()
 
 gs_shader::~gs_shader()
 {
-    if (d_ptr->obj) {
-        glDeleteShader(d_ptr->obj);
-        gl_success("glDeleteShader");
-    }
+    blog(LOG_DEBUG, "gs_shader destroyed.");
 }
 
 bool gs_shader::gs_shader_init(const gs_shader_info &info)

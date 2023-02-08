@@ -25,7 +25,7 @@ gs_texture_render::gs_texture_render(gs_color_format format, gs_zstencil_format 
 
 gs_texture_render::~gs_texture_render()
 {
-
+    blog(LOG_DEBUG, "gs_texture_render destroyed.");
 }
 
 bool gs_texture_render::gs_texrender_resetbuffer(uint32_t cx, uint32_t cy)

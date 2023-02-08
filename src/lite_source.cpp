@@ -1,10 +1,10 @@
 #include "lite_source.h"
 #include "util/circlebuf.h"
 #include "util/log.h"
-#include "audio_info.h"
-#include "video_info.h"
 #include "lite_obs.h"
-#include "audio_resampler.h"
+#include "media-io/audio_info.h"
+#include "media-io/video_info.h"
+#include "media-io/audio_resampler.h"
 #include <mutex>
 #include <list>
 
