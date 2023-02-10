@@ -1,0 +1,5 @@
+create /home/runner/work/avbuild/avbuild/sdk-android-arm64-clang/lib/libavformat_full.a
+addlib /home/runner/work/avbuild/avbuild/sdk-android-arm64-clang/lib/libavformat.a
+addlib /home/runner/work/avbuild/avbuild/build_sdk-android-arm64-clang/libwolfssl.a
+save
+end
