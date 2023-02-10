@@ -4,6 +4,7 @@
 #include "graphics/gs_texture.h"
 #include "graphics/gs_stagesurf.h"
 #include "graphics/gs_program.h"
+#include "graphics/gs_device.h"
 #include "media-io/video_output.h"
 #include "media-io/video-matrices.h"
 #include "util/log.h"
@@ -382,14 +383,17 @@ bool lite_obs_core_video::download_frame(int prev_texture, video_data *frame)
 #include <QFile>
 void lite_obs_core_video::output_video_data(video_data *input_frame, int count)
 {
-    blog(LOG_DEBUG, "++++++++++++++");
+    static int64_t ss = 0;
+    int64_t now = os_gettime_ns();
+    blog(LOG_DEBUG, "%lld", (now-ss)/1000000);
+    ss = now;
     //    //todo output to encoder
-    QFile cc("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/files/aa.nv12");
-//    QFile cc("ff.nv12");
-    cc.open(QFile::ReadWrite);
-    cc.write((char *)input_frame->frame.data[0], d_ptr->output_width*d_ptr->output_height);
-    cc.write((char *)input_frame->frame.data[1], d_ptr->output_width*d_ptr->output_height/2);
-    cc.close();
+//    QFile cc("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/files/aa.nv12");
+////    QFile cc("ff.nv12");
+//    cc.open(QFile::ReadWrite);
+//    cc.write((char *)input_frame->frame.data[0], d_ptr->output_width*d_ptr->output_height);
+//    cc.write((char *)input_frame->frame.data[1], d_ptr->output_width*d_ptr->output_height/2);
+//    cc.close();
 }
 
 void lite_obs_core_video::output_frame(bool raw_active, const bool gpu_active)
@@ -666,23 +670,11 @@ bool lite_obs_core_video::init_textures()
     return true;
 }
 
-bool lite_obs_core_video::init_graphics()
-{
-    if (d_ptr->graphics)
-        return true;
-
-    auto gs = std::make_unique<graphics_subsystem>();
-    if (!gs->graphics_init())
-        return false;
-
-    d_ptr->graphics = std::move(gs);
-    return true;
-}
-
 void lite_obs_core_video::graphics_thread_internal()
 {
     do {
-        if (!init_graphics()) {
+        d_ptr->graphics = gs_create_graphics_system();
+        if (!d_ptr->graphics) {
             break;
         }
 
@@ -771,6 +763,7 @@ int lite_obs_core_video::lite_obs_start_video(obs_video_info *ovi)
     set_video_matrix(ovi);
     d_ptr->ovi = *ovi;
 
+    gs_device::gs_check_device_context();
     d_ptr->thread_initialized = true;
     d_ptr->video_thread = std::thread(lite_obs_core_video::graphics_thread, this);
     return OBS_VIDEO_SUCCESS;

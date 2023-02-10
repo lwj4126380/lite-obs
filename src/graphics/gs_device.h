@@ -17,6 +17,8 @@ public:
     gs_device();
     ~gs_device();
 
+    static void gs_check_device_context();
+
     int device_create();
     void device_destroy();
 
@@ -51,7 +53,11 @@ public:
     void gs_device_load_default_pixelshader_samplers();
 
 private:
-    std::unique_ptr<gl_platform> gl_platform_create();
+    void *gl_platform_create();
+    void gl_platform_destroy(void *plat);
+
+    void device_enter_context_internal(void *param);
+    void device_leave_context_internal(void *param);
 
     bool set_current_fbo(std::shared_ptr<fbo_info> fbo);
     uint32_t get_target_height();

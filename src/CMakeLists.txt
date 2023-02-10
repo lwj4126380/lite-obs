@@ -13,29 +13,6 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Quick)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
-#platform deps
-if(WIN32)
-    add_subdirectory("${CMAKE_SOURCE_DIR}/third-party/glad")
-
-    set(FFMPEG_PLATFORM_NAME windows)
-    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-        set(FFMPEG_LIB_PATH ${CMAKE_SOURCE_DIR}/third-party/ffmpeg/${FFMPEG_PLATFORM_NAME}/lib/x64)
-    elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-        set(FFMPEG_LIB_PATH ${CMAKE_SOURCE_DIR}/third-party/ffmpeg/${FFMPEG_PLATFORM_NAME}/lib/x86)
-    endif()
-    set(FFMPEG_LIBS ${FFMPEG_LIB_PATH}/ffmpeg.lib)
-    set(THIRD_PARTY_LIBS ${FFMPEG_LIBS} glad)
-elseif(ANDROID)
-    set(FFMPEG_PLATFORM_NAME android)
-    set(FFMPEG_LIB_PATH ${CMAKE_SOURCE_DIR}/third-party/ffmpeg/${FFMPEG_PLATFORM_NAME}/lib/${ANDROID_ABI})
-    set(FFMPEG_LIBS
-        ${FFMPEG_LIB_PATH}/libffmpeg.so)
-
-    set(THIRD_PARTY_LIBS ${FFMPEG_LIBS})
-endif()
-
-include_directories(${CMAKE_SOURCE_DIR}/third-party/ffmpeg/${FFMPEG_PLATFORM_NAME}/include)
-
 
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/third-party)
@@ -78,6 +55,8 @@ set(liteobs_HEADERS
     lite-obs2_global.h
     lite_obs_info.h
     lite_obs.h
+
+    fboinsgrenderer.h
 )
 
 set(liteobs_SOURCES
@@ -97,6 +76,7 @@ set(liteobs_SOURCES
 
     lite_obs.cpp
 
+    fboinsgrenderer.cpp
     main.cpp
     qml.qrc
 )
@@ -129,6 +109,33 @@ set(liteobs_graphics_SOURCES
     graphics/gs_stagesurf.cpp
 )
 
+#platform deps
+if(WIN32)
+    add_subdirectory("${CMAKE_SOURCE_DIR}/third-party/glad")
+
+    set(FFMPEG_PLATFORM_NAME windows)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(FFMPEG_LIB_PATH ${CMAKE_SOURCE_DIR}/third-party/ffmpeg/${FFMPEG_PLATFORM_NAME}/lib/x64)
+    elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+        set(FFMPEG_LIB_PATH ${CMAKE_SOURCE_DIR}/third-party/ffmpeg/${FFMPEG_PLATFORM_NAME}/lib/x86)
+    endif()
+    set(FFMPEG_LIBS ${FFMPEG_LIB_PATH}/ffmpeg.lib)
+    set(THIRD_PARTY_LIBS ${FFMPEG_LIBS} glad)
+
+    list(APPEND liteobs_graphics_SOURCES graphics/gs_device_windows.cpp)
+elseif(ANDROID)
+    set(FFMPEG_PLATFORM_NAME android)
+    set(FFMPEG_LIB_PATH ${CMAKE_SOURCE_DIR}/third-party/ffmpeg/${FFMPEG_PLATFORM_NAME}/lib/${ANDROID_ABI})
+    set(FFMPEG_LIBS
+        ${FFMPEG_LIB_PATH}/libffmpeg.so)
+
+    set(THIRD_PARTY_LIBS ${FFMPEG_LIBS})
+
+    list(APPEND liteobs_graphics_SOURCES graphics/gs_device_android.cpp)
+endif()
+
+include_directories(${CMAKE_SOURCE_DIR}/third-party/ffmpeg/${FFMPEG_PLATFORM_NAME}/include)
+
 qt_add_executable(lite-obs
   MANUAL_FINALIZATION
   ${liteobs_util_HEADERS}
@@ -138,7 +145,6 @@ qt_add_executable(lite-obs
   ${liteobs_HEADERS}
   ${liteobs_SOURCES}
 )
-
 
 target_link_libraries(lite-obs
     PRIVATE Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Quick

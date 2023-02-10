@@ -27,7 +27,6 @@ private:
     void set_video_matrix(obs_video_info *ovi);
     void calc_gpu_conversion_sizes();
 
-    bool init_graphics();
     void clear_gpu_conversion_textures();
     bool init_gpu_conversion();
     void clear_gpu_copy_surface();

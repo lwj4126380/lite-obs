@@ -82,6 +82,15 @@ bool gs_valid(const char *f)
     return true;
 }
 
+std::unique_ptr<graphics_subsystem> gs_create_graphics_system()
+{
+    auto gs = std::make_unique<graphics_subsystem>();
+    if (!gs->graphics_init())
+        return nullptr;
+
+    return gs;
+}
+
 graphics_subsystem::graphics_subsystem()
 {
     d_ptr = std::make_unique<graphics_subsystem_private>();

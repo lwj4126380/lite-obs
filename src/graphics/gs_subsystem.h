@@ -37,6 +37,8 @@ public:
 bool gs_valid(const char *f);
 graphics_subsystem *gs_graphics_subsystem();
 
+std::unique_ptr<graphics_subsystem> gs_create_graphics_system();
+
 void gs_enter_contex(std::unique_ptr<graphics_subsystem> &graphics);
 void gs_leave_context();
 
