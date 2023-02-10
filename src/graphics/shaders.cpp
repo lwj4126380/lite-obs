@@ -1,7 +1,7 @@
 #include "shaders.h"
 
 std::string conversion_shaders = R"(
-Planar_Y
+Convert_Planar_Y
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -44,7 +44,7 @@ void main(void)
 ---------------------------------------
 ---------------------------------------
 =======================================
-Planar_Y
+Convert_Planar_Y
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -86,7 +86,7 @@ float4 color_vec0 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-Planar_U
+Convert_Planar_U
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -129,7 +129,7 @@ void main(void)
 ---------------------------------------
 ---------------------------------------
 =======================================
-Planar_U
+Convert_Planar_U
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -171,7 +171,7 @@ float4 color_vec1 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-Planar_V
+Convert_Planar_V
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -214,7 +214,7 @@ void main(void)
 ---------------------------------------
 ---------------------------------------
 =======================================
-Planar_V
+Convert_Planar_V
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -256,7 +256,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-Planar_U_Left
+Convert_Planar_U_Left
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -313,7 +313,7 @@ float width_i null 3 0 18446744073709551615
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-Planar_U_Left
+Convert_Planar_U_Left
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -359,7 +359,7 @@ float4 color_vec1 null 3 0 18446744073709551615
 ---------------------------------------
 def_sampler
 =======================================
-Planar_V_Left
+Convert_Planar_V_Left
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -416,7 +416,7 @@ float width_i null 3 0 18446744073709551615
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-Planar_V_Left
+Convert_Planar_V_Left
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -462,7 +462,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 ---------------------------------------
 def_sampler
 =======================================
-NV12_Y
+Convert_NV12_Y
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -505,7 +505,7 @@ void main(void)
 ---------------------------------------
 ---------------------------------------
 =======================================
-NV12_Y
+Convert_NV12_Y
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -547,7 +547,7 @@ float4 color_vec0 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-NV12_UV
+Convert_NV12_UV
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -604,7 +604,7 @@ float width_i null 3 0 18446744073709551615
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-NV12_UV
+Convert_NV12_UV
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -656,7 +656,7 @@ def_sampler
 )";
 
 std::string conversion_shaders2 = R"(
-UYVY_Reverse
+Convert_UYVY_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -715,7 +715,7 @@ float height null 3 0 18446744073709551615
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-UYVY_Reverse
+Convert_UYVY_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -784,7 +784,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-YUY2_Reverse
+Convert_YUY2_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -843,7 +843,7 @@ float height null 3 0 18446744073709551615
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-YUY2_Reverse
+Convert_YUY2_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -912,7 +912,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-YVYU_Reverse
+Convert_YVYU_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -971,7 +971,7 @@ float height null 3 0 18446744073709551615
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-YVYU_Reverse
+Convert_YVYU_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1040,7 +1040,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-I420_Reverse
+Convert_I420_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1099,7 +1099,7 @@ float height_d2 null 3 0 18446744073709551615
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-I420_Reverse
+Convert_I420_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1177,7 +1177,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 )";
 
 std::string conversion_shaders3 = R"(
-I40A_Reverse
+Convert_I40A_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1236,7 +1236,7 @@ float height_d2 null 3 0 18446744073709551615
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-I40A_Reverse
+Convert_I40A_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1317,7 +1317,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-I422_Reverse
+Convert_I422_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1379,7 +1379,7 @@ float height null 3 0 18446744073709551615
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-I422_Reverse
+Convert_I422_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1453,7 +1453,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-I42A_Reverse
+Convert_I42A_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1515,7 +1515,7 @@ float height null 3 0 18446744073709551615
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-I42A_Reverse
+Convert_I42A_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1594,7 +1594,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-I444_Reverse
+Convert_I444_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1637,7 +1637,7 @@ void main(void)
 ---------------------------------------
 ---------------------------------------
 =======================================
-I444_Reverse
+Convert_I444_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1712,7 +1712,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 )";
 
 std::string conversion_shaders4 = R"(
-YUVA_Reverse
+Convert_YUVA_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1755,7 +1755,7 @@ void main(void)
 ---------------------------------------
 ---------------------------------------
 =======================================
-YUVA_Reverse
+Convert_YUVA_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1832,7 +1832,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-AYUV_Reverse
+Convert_AYUV_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1875,7 +1875,7 @@ void main(void)
 ---------------------------------------
 ---------------------------------------
 =======================================
-AYUV_Reverse
+Convert_AYUV_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1938,7 +1938,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-NV12_Reverse
+Convert_NV12_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -1997,7 +1997,7 @@ float height_d2 null 3 0 18446744073709551615
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-NV12_Reverse
+Convert_NV12_Reverse
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -2068,7 +2068,7 @@ float4 color_vec2 null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-Y800_Limited
+Convert_Y800_Limited
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -2111,7 +2111,7 @@ void main(void)
 ---------------------------------------
 ---------------------------------------
 =======================================
-Y800_Limited
+Convert_Y800_Limited
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -2150,7 +2150,7 @@ texture2d image null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-Y800_Full
+Convert_Y800_Full
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -2193,7 +2193,7 @@ void main(void)
 ---------------------------------------
 ---------------------------------------
 =======================================
-Y800_Full
+Convert_Y800_Full
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -2233,7 +2233,7 @@ texture2d image null 3 0 18446744073709551615
 )";
 
 std::string conversion_shaders5 = R"(
-RGB_Limited
+Convert_RGB_Limited
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -2276,7 +2276,7 @@ void main(void)
 ---------------------------------------
 ---------------------------------------
 =======================================
-RGB_Limited
+Convert_RGB_Limited
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -2315,7 +2315,7 @@ texture2d image null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-BGR3_Limited
+Convert_BGR3_Limited
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -2358,7 +2358,7 @@ void main(void)
 ---------------------------------------
 ---------------------------------------
 =======================================
-BGR3_Limited
+Convert_BGR3_Limited
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -2402,7 +2402,7 @@ texture2d image null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
 =======================================
-BGR3_Full
+Convert_BGR3_Full
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -2445,7 +2445,7 @@ void main(void)
 ---------------------------------------
 ---------------------------------------
 =======================================
-BGR3_Full
+Convert_BGR3_Full
 ---------------------------------------
 
 const bool obs_glsl_compile = true;
@@ -2490,7 +2490,7 @@ texture2d image null 3 0 18446744073709551615
 )";
 
 std::string draw_shader = R"(
-Draw
+Default_Draw
 ---------------------------------------
 const bool obs_glsl_compile = true;
 
@@ -2543,7 +2543,7 @@ _input_attrib1 TEXCOORD0 1
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-Draw
+Default_Draw
 ---------------------------------------
 const bool obs_glsl_compile = true;
 
@@ -2582,11 +2582,14 @@ texture2d image null 3 0 0
 ---------------------------------------
 ---------------------------------------
 def_sampler
-=======================================
-DrawAlphaDivide
+)";
+
+std::string scale_shader = R"(
+Scale_Draw
 ---------------------------------------
 const bool obs_glsl_compile = true;
 
+uniform highp vec2 base_dimension;
 uniform mat4x4 ViewProj;
 
 in vec4 _input_attrib0;
@@ -2594,39 +2597,46 @@ in vec2 _input_attrib1;
 
 out vec2 _vertex_shader_attrib0;
 
-struct VertInOut {
+struct VertOut {
+    vec2 uv;
+    vec4 pos;
+};
+
+struct VertData {
     vec4 pos;
     vec2 uv;
 };
 
-VertInOut VSDefault(VertInOut vert_in)
+VertOut VSDefault(VertData v_in)
 {
-    VertInOut vert_out;
-    vert_out.pos = ((vec4(vert_in.pos.xyz, 1.0)) * (ViewProj));
-    vert_out.uv  = vert_in.uv;
+    VertOut vert_out;
+    vert_out.uv = v_in.uv * base_dimension;
+    vert_out.pos = ((vec4(v_in.pos.xyz, 1.0)) * (ViewProj));
     return vert_out;
 }
 
-VertInOut _main_wrap(VertInOut vert_in)
+VertOut _main_wrap(VertData v_in)
 {
-    return VSDefault(vert_in);
+    return VSDefault(v_in);
 }
 
 void main(void)
 {
-    VertInOut vert_in;
-    VertInOut outputval;
+    VertData v_in;
+    VertOut outputval;
 
-    vert_in.pos = _input_attrib0;
-    vert_in.uv = _input_attrib1;
+    v_in.pos = _input_attrib0;
+    v_in.uv = _input_attrib1;
 
-    outputval = _main_wrap(vert_in);
+    outputval = _main_wrap(v_in);
 
-    gl_Position = outputval.pos;
     _vertex_shader_attrib0 = outputval.uv;
+    gl_Position = outputval.pos;
 }
 
 ---------------------------------------
+float2 base_dimension null 3 0 18446744073709551615
++++++++++++++++++++++++++++++++++++++++
 float4x4 ViewProj null 3 0 18446744073709551615
 ---------------------------------------
 _input_attrib0 POSITION 1
@@ -2636,48 +2646,143 @@ _input_attrib1 TEXCOORD0 1
 _vertex_shader_attrib0 TEXCOORD0 0
 ---------------------------------------
 =======================================
-DrawAlphaDivide
+Scale_Draw
 ---------------------------------------
 const bool obs_glsl_compile = true;
 
+uniform vec2 base_dimension_i;
+uniform vec2 base_dimension_f;
 uniform sampler2D image;
+uniform float undistort_factor;
 
 in vec2 _vertex_shader_attrib0;
 
 out vec4 _pixel_shader_attrib0;
 
-struct VertInOut {
-    vec4 pos;
+struct FragData {
     vec2 uv;
 };
 
-vec4 PSDrawAlphaDivide(VertInOut vert_in)
+vec4 weight4(float x)
 {
-    vec4 rgba = texture(image, vert_in.uv);
-    float alpha = rgba.a;
-    float multiplier = (alpha > 0.0) ? (1.0 / alpha) : 0.0;
-    return vec4(rgba.rgb * multiplier, alpha);
+
+    return vec4(
+        ((-0.75 * x + 1.5) * x - 0.75) * x,
+        (1.25 * x - 2.25) * x * x + 1.0,
+        ((-1.25 * x + 1.5) * x + 0.75) * x,
+        (0.75 * x - 0.75) * x * x);
 }
 
-vec4 _main_wrap(VertInOut vert_in)
+float AspectUndistortX(float x, float a)
 {
-    return PSDrawAlphaDivide(vert_in);
+
+    return (1.0 - a) * (x * x * x * x * x) + a * x;
+}
+
+float AspectUndistortU(float u)
+{
+
+    return AspectUndistortX((u - 0.5) * 2.0, undistort_factor) * 0.5 + 0.5;
+}
+
+vec2 undistort_coord(float xpos, float ypos)
+{
+    return vec2(AspectUndistortU(xpos), ypos);
+}
+
+vec4 undistort_pixel(float xpos, float ypos)
+{
+    return texture(image, undistort_coord(xpos, ypos));
+}
+
+vec4 undistort_line(vec4 xpos, float ypos, vec4 rowtaps)
+{
+    return undistort_pixel(xpos.x, ypos) * rowtaps.x +
+           undistort_pixel(xpos.y, ypos) * rowtaps.y +
+           undistort_pixel(xpos.z, ypos) * rowtaps.z +
+           undistort_pixel(xpos.w, ypos) * rowtaps.w;
+}
+
+vec4 DrawBicubic(FragData f_in, bool undistort)
+{
+    vec2 pos = f_in.uv;
+    vec2 pos1 = floor(pos - 0.5) + 0.5;
+    vec2 f = pos - pos1;
+
+    vec4 rowtaps = weight4(f.x);
+    vec4 coltaps = weight4(f.y);
+
+    vec2 uv1 = pos1 * base_dimension_i;
+    vec2 uv0 = uv1 - base_dimension_i;
+    vec2 uv2 = uv1 + base_dimension_i;
+    vec2 uv3 = uv2 + base_dimension_i;
+
+    if (undistort) {
+        vec4 xpos = vec4(uv0.x, uv1.x, uv2.x, uv3.x);
+        return undistort_line(xpos, uv0.y, rowtaps) * coltaps.x +
+               undistort_line(xpos, uv1.y, rowtaps) * coltaps.y +
+               undistort_line(xpos, uv2.y, rowtaps) * coltaps.z +
+               undistort_line(xpos, uv3.y, rowtaps) * coltaps.w;
+    }
+
+    float u_weight_sum = rowtaps.y + rowtaps.z;
+    float u_middle_offset = rowtaps.z * base_dimension_i.x / u_weight_sum;
+    float u_middle = uv1.x + u_middle_offset;
+
+    float v_weight_sum = coltaps.y + coltaps.z;
+    float v_middle_offset = coltaps.z * base_dimension_i.y / v_weight_sum;
+    float v_middle = uv1.y + v_middle_offset;
+
+    ivec2 coord_top_left = ivec2(max(uv0 * base_dimension_f, 0.5));
+    ivec2 coord_bottom_right = ivec2(min(uv3 * base_dimension_f, base_dimension_f - 0.5));
+
+    vec4 top = texelFetch(image, (ivec3(coord_top_left, 0)).xy, 0) * rowtaps.x;
+    top += texture(image, vec2(u_middle, uv0.y)) * u_weight_sum;
+    top += texelFetch(image, (ivec3(coord_bottom_right.x, coord_top_left.y, 0)).xy, 0) * rowtaps.w;
+    vec4 total = top * coltaps.x;
+
+    vec4 middle = texture(image, vec2(uv0.x, v_middle)) * rowtaps.x;
+    middle += texture(image, vec2(u_middle, v_middle)) * u_weight_sum;
+    middle += texture(image, vec2(uv3.x, v_middle)) * rowtaps.w;
+    total += middle * v_weight_sum;
+
+    vec4 bottom = texelFetch(image, (ivec3(coord_top_left.x, coord_bottom_right.y, 0)).xy, 0) * rowtaps.x;
+    bottom += texture(image, vec2(u_middle, uv3.y)) * u_weight_sum;
+    bottom += texelFetch(image, (ivec3(coord_bottom_right, 0)).xy, 0) * rowtaps.w;
+    total += bottom * coltaps.w;
+
+    return total;
+}
+
+vec4 PSDrawBicubicRGBA(FragData f_in, bool undistort)
+{
+    return DrawBicubic(f_in, undistort);
+}
+
+vec4 _main_wrap(FragData f_in)
+{
+    return PSDrawBicubicRGBA(f_in,false);
 }
 
 void main(void)
 {
-    VertInOut vert_in;
-    vert_in.pos = gl_FragCoord;
-    vert_in.uv = _vertex_shader_attrib0;
+    FragData f_in;
+    f_in.uv = _vertex_shader_attrib0;
 
-    _pixel_shader_attrib0 = _main_wrap(vert_in);
+    _pixel_shader_attrib0 = _main_wrap(f_in);
 }
 
 ---------------------------------------
+float2 base_dimension_i null 3 0 18446744073709551615
++++++++++++++++++++++++++++++++++++++++
+float2 base_dimension_f null 3 0 18446744073709551615
++++++++++++++++++++++++++++++++++++++++
 texture2d image null 3 0 0
++++++++++++++++++++++++++++++++++++++++
+float undistort_factor null 3 0 18446744073709551615
 ---------------------------------------
 ---------------------------------------
-def_sampler
+textureSampler
 )";
 
 std::string conversion_shaders_total =
@@ -2686,6 +2791,7 @@ std::string conversion_shaders_total =
         conversion_shaders3 + "=======================================" +
         conversion_shaders4 + "=======================================" +
         conversion_shaders5 + "=======================================" +
+        scale_shader + "=======================================" +
         draw_shader;
 
 

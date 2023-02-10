@@ -63,6 +63,8 @@ private:
     std::unique_ptr<gs_device_private> d_ptr{};
 };
 
+std::shared_ptr<gs_device> gs_create_device();
+
 class gs_device_context_helper
 {
 public:

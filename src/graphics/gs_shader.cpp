@@ -170,6 +170,7 @@ void gs_shader::gs_shader_set_matrix4(const std::shared_ptr<gs_shader_param> &pa
 
     param->cur_value.resize(sizeof(glm::mat4x4));
     memcpy(param->cur_value.data(), &val, sizeof(glm::mat4x4));
+    param->changed = true;
 }
 
 std::string gs_shader::gl_get_shader_info(GLuint shader)

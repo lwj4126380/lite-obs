@@ -20,15 +20,14 @@ public:
     graphics_subsystem();
     ~graphics_subsystem();
 
-    int gs_create();
-    int gs_effect_init();
+    bool graphics_init();
 
     std::shared_ptr<gs_program> gs_get_effect_by_name(const char *name);
     void gs_draw_sprite(std::shared_ptr<gs_texture> tex, uint32_t flip, uint32_t width, uint32_t height);
 
 private:
-    bool graphics_init();
-    bool graphics_init_sprite_vb();
+    bool init_sprite_vb();
+    bool init_effect();
     std::shared_ptr<gs_shader> shader_from_string(const std::string &shader_string, bool vertex_shader, std::string &out_name);
 
 public:
@@ -41,6 +40,8 @@ graphics_subsystem *gs_graphics_subsystem();
 void gs_enter_contex(std::unique_ptr<graphics_subsystem> &graphics);
 void gs_leave_context();
 
+void gs_begin_scene();
+void gs_end_scene();
 void gs_enable_depth_test(bool enable);
 void gs_enable_blending(bool enable);
 void gs_set_cull_mode(gs_cull_mode mode);

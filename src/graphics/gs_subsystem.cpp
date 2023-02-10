@@ -102,22 +102,7 @@ graphics_subsystem::~graphics_subsystem()
     blog(LOG_DEBUG, "graphics_subsystem destroyed.");
 }
 
-int graphics_subsystem::gs_create()
-{
-    auto device = std::make_shared<gs_device>();
-    int errcode = device->device_create();
-    if (errcode != GS_SUCCESS)
-        return errcode;
-
-    d_ptr->device = std::move(device);
-
-    if (!graphics_init())
-        return GS_ERROR_FAIL;
-
-    return GS_SUCCESS;
-}
-
-int graphics_subsystem::gs_effect_init()
+bool graphics_subsystem::init_effect()
 {
     conversion_shaders_total.erase(std::remove(conversion_shaders_total.begin(), conversion_shaders_total.end(), '\n'), conversion_shaders_total.end());
 
@@ -130,20 +115,21 @@ int graphics_subsystem::gs_effect_init()
         auto pixel_shader = shader_from_string(p, false, name);
 
         if (vertex_shader && pixel_shader) {
-            auto program = std::make_shared<gs_program>();
+            auto program = std::make_shared<gs_program>(name);
             if (program->gs_program_create(vertex_shader, pixel_shader)) {
                 d_ptr->effects.insert({name, program});
+                blog(LOG_DEBUG, "gs program create: %s.", name.c_str());
             } else {
-                return GS_ERROR_FAIL;
+                return false;
                 blog(LOG_DEBUG, "effect %s init error!", name.c_str());
             }
         } else {
             blog(LOG_DEBUG, "create shader error.");
-            return GS_ERROR_FAIL;
+            return false;
         }
     }
 
-    return GS_SUCCESS;
+    return true;
 }
 
 std::shared_ptr<gs_program> graphics_subsystem::gs_get_effect_by_name(const char *name)
@@ -177,28 +163,44 @@ void graphics_subsystem::gs_draw_sprite(std::shared_ptr<gs_texture> tex, uint32_
 
 bool graphics_subsystem::graphics_init()
 {
-    glm::mat4x4 top_mat(1);
-    d_ptr->matrix_stack.push_back(top_mat);
+    bool res = false;
+    do {
+        d_ptr->device = gs_create_device();
+        if (!d_ptr->device)
+            break;
 
-    gs_device_context_helper context_helper(d_ptr->device.get());
+        glm::mat4x4 top_mat(1);
+        d_ptr->matrix_stack.push_back(top_mat);
 
-    if (!graphics_init_sprite_vb())
-        return false;
+        d_ptr->device->device_enter_context();
 
-    d_ptr->device->device_blend_function_separate(gs_blend_type::GS_BLEND_SRCALPHA,
-                                                  gs_blend_type::GS_BLEND_INVSRCALPHA,
-                                                  gs_blend_type::GS_BLEND_ONE,
-                                                  gs_blend_type::GS_BLEND_INVSRCALPHA);
-    d_ptr->cur_blend_state.enabled = true;
-    d_ptr->cur_blend_state.src_c = gs_blend_type::GS_BLEND_SRCALPHA;
-    d_ptr->cur_blend_state.dest_c = gs_blend_type::GS_BLEND_INVSRCALPHA;
-    d_ptr->cur_blend_state.src_a = gs_blend_type::GS_BLEND_ONE;
-    d_ptr->cur_blend_state.dest_a = gs_blend_type::GS_BLEND_INVSRCALPHA;
+        if (!init_sprite_vb())
+            break;
 
-    return true;
+        if (!init_effect())
+            break;
+
+        d_ptr->device->device_blend_function_separate(gs_blend_type::GS_BLEND_SRCALPHA,
+                                                      gs_blend_type::GS_BLEND_INVSRCALPHA,
+                                                      gs_blend_type::GS_BLEND_ONE,
+                                                      gs_blend_type::GS_BLEND_INVSRCALPHA);
+        d_ptr->cur_blend_state.enabled = true;
+        d_ptr->cur_blend_state.src_c = gs_blend_type::GS_BLEND_SRCALPHA;
+        d_ptr->cur_blend_state.dest_c = gs_blend_type::GS_BLEND_INVSRCALPHA;
+        d_ptr->cur_blend_state.src_a = gs_blend_type::GS_BLEND_ONE;
+        d_ptr->cur_blend_state.dest_a = gs_blend_type::GS_BLEND_INVSRCALPHA;
+
+        res = true;
+    } while (false);
+
+    if (d_ptr->device) {
+        d_ptr->device->device_leave_context();
+    }
+
+    return res;
 }
 
-bool graphics_subsystem::graphics_init_sprite_vb()
+bool graphics_subsystem::init_sprite_vb()
 {
     auto vb = std::make_shared<gs_vertexbuffer>();
     if (!vb->gs_vertexbuffer_init_sprite())
@@ -271,6 +273,13 @@ std::shared_ptr<gs_shader> graphics_subsystem::shader_from_string(const std::str
                 sampler.values = {"Linear", "Clamp", "Clamp"};
 
                 shader_info.parser_shader_samplers.push_back(std::move(sampler));
+            } else if (name == "textureSampler") {
+                gl_parser_shader_sampler sampler;
+                sampler.name = "textureSampler";
+                sampler.states = {"Filter", "AddressU", "AddressV"};
+                sampler.values = {"Linear", "Clamp", "Clamp"};
+
+                shader_info.parser_shader_samplers.push_back(std::move(sampler));
             }
         }
     }
@@ -326,6 +335,19 @@ void gs_set_render_target(std::shared_ptr<gs_texture> tex, std::shared_ptr<gs_zs
 
     if (!thread_graphics->d_ptr->device->gs_device_set_render_target(tex, zs))
         blog(LOG_ERROR, "device_set_render_target (GL) failed");
+}
+
+void gs_begin_scene()
+{
+    if (!gs_valid("gs_begin_scene"))
+        return;
+
+    thread_graphics->d_ptr->device->gs_device_clear_textures();
+}
+
+void gs_end_scene()
+{
+    /*do nothing*/
 }
 
 void gs_enable_depth_test(bool enable)

@@ -14,12 +14,15 @@ class lite_obs
 {
 public:
     lite_obs();
+    ~lite_obs();
 
     void add_source(std::shared_ptr<lite_source> source, bool is_audio_source);
     void remove_source(std::shared_ptr<lite_source> source);
 
-    //thread request
     int obs_reset_video(obs_video_info *ovi);
+
+    void obs_enter_graphics_context();
+    void obs_leave_graphics_context();
 
     void obs_shutdown();
 

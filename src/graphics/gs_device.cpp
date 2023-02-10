@@ -136,14 +136,13 @@ void gs_device::device_enter_context()
     if (!d_ptr->plat)
         return;
 
-#if defined __ANDROID
+#if defined __ANDROID__
     if (!eglMakeCurrent(d_ptr->plat->display, d_ptr->plat->surface, d_ptr->plat->surface, d_ptr->plat->context)) {
         blog(LOG_DEBUG, "eglMakeCurrent() returned error %d", eglGetError());
     }
 #elif defined WIN32
     HDC hdc = d_ptr->plat->window.hdc;
     if (!wglMakeCurrent(hdc, d_ptr->plat->hrc)) {
-        auto err = GetLastError();
         blog(LOG_ERROR, "device_enter_context (GL) failed");
     }
 #endif
@@ -154,7 +153,7 @@ void gs_device::device_leave_context()
     if (!d_ptr->plat)
         return;
 
-#if defined __ANDROID
+#if defined __ANDROID__
     eglMakeCurrent(d_ptr->plat->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT );
 #elif defined WIN32
     if (!wglMakeCurrent(NULL, NULL))
@@ -402,8 +401,10 @@ std::shared_ptr<gs_program> gs_device::gs_device_program()
 void gs_device::gs_device_draw(gs_draw_mode draw_mode, uint32_t start_vert, uint32_t num_verts)
 {
     auto program = d_ptr->cur_program.lock();
-    if (!program)
+    if (!program) {
+        blog(LOG_DEBUG, "no program when call gs_device_draw.");
         return;
+    }
 
     auto vb = d_ptr->cur_vertex_buffer.lock();
     auto ib = d_ptr->cur_index_buffer.lock();
@@ -462,7 +463,7 @@ void gs_device::gs_device_load_texture(std::weak_ptr<gs_texture> p_tex, int unit
     auto cur_tex = d_ptr->cur_textures[unit].lock();
     auto tex = p_tex.lock();
     if (cur_tex == tex)
-        return;
+        goto fail;
 
     if (!gl_active_texture(GL_TEXTURE0 + unit))
         goto fail;
@@ -476,14 +477,14 @@ void gs_device::gs_device_load_texture(std::weak_ptr<gs_texture> p_tex, int unit
 
     program = d_ptr->cur_program.lock();
     if (!program)
-        return;
+        goto fail;
 
     param = program->gs_effect_pixel_shader()->gs_shader_param_by_unit(unit);
     if (!param)
-        return;
+        goto fail;
 
     if (!tex)
-        return;
+        goto fail;
 
     // texelFetch doesn't need a sampler
     if (param->sampler_id != (size_t)-1)
@@ -951,3 +952,12 @@ std::unique_ptr<gl_platform> gs_device::gl_platform_create()
     return plat;
 }
 #endif
+
+std::shared_ptr<gs_device> gs_create_device()
+{
+    auto device = std::make_shared<gs_device>();
+    if (device->device_create() != GS_SUCCESS)
+        return nullptr;
+
+    return device;
+}

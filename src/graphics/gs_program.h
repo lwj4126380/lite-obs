@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include <glm/vec4.hpp>
+#include <glm/vec2.hpp>
 #include "gs_subsystem_info.h"
 #include "gs_shader_info.h"
 
@@ -13,14 +14,17 @@ class gs_shader;
 class gs_program
 {
 public:
-    gs_program();
+    gs_program(const std::string &name);
     ~gs_program();
 
     bool gs_program_create(std::shared_ptr<gs_shader> vertex_shader, std::shared_ptr<gs_shader> pixel_shader);
 
+    const std::string &gs_program_name();
+
     void gs_effect_set_texture(const char *name, std::shared_ptr<gs_texture> tex);
     void gs_effect_set_param(const char *name, float value);
     void gs_effect_set_param(const char *name, const glm::vec4 &value);
+    void gs_effect_set_param(const char *name, const glm::vec2 &value);
     void gs_effect_set_param(const char *name, const void *value, size_t size);
 
     void gs_effect_upload_parameters(bool change_only);

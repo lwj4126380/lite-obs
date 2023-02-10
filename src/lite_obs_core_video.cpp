@@ -3,6 +3,7 @@
 #include "graphics/gs_subsystem.h"
 #include "graphics/gs_texture.h"
 #include "graphics/gs_stagesurf.h"
+#include "graphics/gs_program.h"
 #include "media-io/video_output.h"
 #include "media-io/video-matrices.h"
 #include "util/log.h"
@@ -73,7 +74,6 @@ struct lite_obs_core_video_private
     uint32_t base_width{};
     uint32_t base_height{};
     float color_matrix[16]{};
-    obs_scale_type scale_type{};
 
     std::atomic_long raw_active{};
     std::atomic_long gpu_encoder_active{};
@@ -89,35 +89,6 @@ lite_obs_core_video::lite_obs_core_video()
 lite_obs_core_video::~lite_obs_core_video()
 {
 
-}
-
-void lite_obs_core_video::lite_obs_video_free_data()
-{
-    if (d_ptr->video) {
-        d_ptr->video->video_output_close();
-        d_ptr->video.reset();
-    }
-
-    if (!d_ptr->graphics)
-        return;
-
-    gs_enter_contex(d_ptr->graphics);
-
-    for (size_t c = 0; c < NUM_CHANNELS; c++) {
-        auto surface = d_ptr->mapped_surfaces[c].lock();
-        if (surface) {
-            surface->gs_stagesurface_unmap();
-            d_ptr->mapped_surfaces[c].reset();
-        }
-    }
-
-    clear_gpu_copy_surface();
-    d_ptr->render_texture.reset();
-    clear_gpu_conversion_textures();
-
-    d_ptr->output_texture.reset();
-
-    gs_leave_context();
 }
 
 void lite_obs_core_video::clear_base_frame_data(void)
@@ -167,20 +138,258 @@ void lite_obs_core_video::video_sleep(bool raw_active, const bool gpu_active, ui
         circlebuf_push_back(&d_ptr->vframe_info_buffer_gpu, &vframe_info, sizeof(vframe_info));
 }
 
+std::shared_ptr<gs_texture> test_texture;
+void lite_obs_core_video::render_all_sources()
+{
+    if (!test_texture)
+        return;
+
+    auto program = d_ptr->graphics->gs_get_effect_by_name("Default_Draw");
+    gs_set_cur_effect(program);
+
+    gs_technique_begin();
+    program->gs_effect_set_texture("image", test_texture);
+    d_ptr->graphics->gs_draw_sprite(test_texture, 0, test_texture->gs_texture_get_width(), test_texture->gs_texture_get_height());
+    gs_technique_end();
+}
+
+void lite_obs_core_video::render_main_texture()
+{
+    glm::vec4 clear_color(0);
+    gs_set_render_target(d_ptr->render_texture, NULL);
+    gs_clear(GS_CLEAR_COLOR, &clear_color, 1.0f, 0);
+
+    gs_set_render_size(d_ptr->base_width, d_ptr->base_height);
+
+    render_all_sources();
+
+    d_ptr->texture_rendered = true;
+}
+
+bool lite_obs_core_video::resolution_close(uint32_t width, uint32_t height)
+{
+    long width_cmp = (long)d_ptr->base_width - (long)width;
+    long height_cmp = (long)d_ptr->base_height - (long)height;
+
+    return labs(width_cmp) <= 16 && labs(height_cmp) <= 16;
+}
+
+std::shared_ptr<gs_program> lite_obs_core_video::get_scale_effect(uint32_t width, uint32_t height)
+{
+    if (resolution_close(width, height)) {
+        return d_ptr->graphics->gs_get_effect_by_name("Default_Draw");;
+    } else {
+        return d_ptr->graphics->gs_get_effect_by_name("Scale_Draw");;
+    }
+}
+
+std::shared_ptr<gs_texture> lite_obs_core_video::render_output_texture()
+{
+    //here we remove RGBA output format support.
+    auto texture = d_ptr->render_texture;
+    auto target = d_ptr->output_texture;
+    uint32_t width = target->gs_texture_get_width();
+    uint32_t height = target->gs_texture_get_height();
+
+    auto program = get_scale_effect(width, height);
+
+    if ((program->gs_program_name() == "Default_Draw") && (width == d_ptr->base_width) && (height == d_ptr->base_height))
+        return texture;
+
+    gs_set_render_target(target, nullptr);
+    gs_set_render_size(width, height);
+
+    glm::vec2 base = {(float)d_ptr->base_width, (float)d_ptr->base_height};
+    program->gs_effect_set_param("base_dimension", base);
+    program->gs_effect_set_param("base_dimension_f", base);
+
+    glm::vec2 base_i = {1.0f / (float)d_ptr->base_width, 1.0f / (float)d_ptr->base_height};
+    program->gs_effect_set_param("base_dimension_i", base_i);
+
+    program->gs_effect_set_texture("image", texture);
+
+    gs_set_cur_effect(program);
+
+    gs_enable_blending(false);
+
+    gs_technique_begin();
+    d_ptr->graphics->gs_draw_sprite(texture, 0, width, height);
+    gs_technique_end();
+    gs_enable_blending(true);
+
+    return target;
+}
+
+void lite_obs_core_video::render_convert_plane(std::shared_ptr<gs_texture> target)
+{
+    const uint32_t width = target->gs_texture_get_width();
+    const uint32_t height = target->gs_texture_get_height();
+
+    gs_set_render_target(target, NULL);
+    gs_set_render_size(width, height);
+
+    gs_technique_begin();
+    gs_draw(gs_draw_mode::GS_TRIS, 0, 3);
+    gs_technique_end();
+}
+
+void lite_obs_core_video::render_convert_texture(std::shared_ptr<gs_texture> texture)
+{
+    gs_enable_blending(false);
+
+    glm::vec4 vec0 = {d_ptr->color_matrix[4], d_ptr->color_matrix[5], d_ptr->color_matrix[6], d_ptr->color_matrix[7]};
+    glm::vec4 vec1 = {d_ptr->color_matrix[0], d_ptr->color_matrix[1], d_ptr->color_matrix[2], d_ptr->color_matrix[3]};
+    glm::vec4 vec2 = {d_ptr->color_matrix[8], d_ptr->color_matrix[9], d_ptr->color_matrix[10], d_ptr->color_matrix[11]};
+
+    if (d_ptr->convert_textures[0]) {
+        auto program = d_ptr->graphics->gs_get_effect_by_name(d_ptr->conversion_techs[0]);
+        gs_set_cur_effect(program);
+        program->gs_effect_set_param("color_vec0", vec0);
+        program->gs_effect_set_texture("image", texture);
+        render_convert_plane(d_ptr->convert_textures[0]);
+
+        if (d_ptr->convert_textures[1]) {
+            auto program1 = d_ptr->graphics->gs_get_effect_by_name(d_ptr->conversion_techs[1]);
+            gs_set_cur_effect(program1);
+            program1->gs_effect_set_param("color_vec1", vec1);
+            program1->gs_effect_set_texture("image", texture);
+            if (!d_ptr->convert_textures[2])
+                program1->gs_effect_set_param("color_vec2", vec2);
+            program1->gs_effect_set_param("width_i", d_ptr->conversion_width_i);
+            render_convert_plane(d_ptr->convert_textures[1]);
+
+            if (d_ptr->convert_textures[2]) {
+                auto program2 = d_ptr->graphics->gs_get_effect_by_name(d_ptr->conversion_techs[2]);
+                gs_set_cur_effect(program2);
+                program2->gs_effect_set_param("color_vec1", vec1);
+                program2->gs_effect_set_texture("image", texture);
+                program2->gs_effect_set_param("color_vec2", vec2);
+                program2->gs_effect_set_param("width_i", d_ptr->conversion_width_i);
+                render_convert_plane(d_ptr->convert_textures[2]);
+            }
+        }
+    }
+
+    for (int i = 0; i < 3; ++i) {
+        if (!d_ptr->convert_textures[i])
+            continue;
+
+        glm::vec4 vec0 = {d_ptr->color_matrix[4], d_ptr->color_matrix[5], d_ptr->color_matrix[6], d_ptr->color_matrix[7]};
+        glm::vec4 vec1 = {d_ptr->color_matrix[0], d_ptr->color_matrix[1], d_ptr->color_matrix[2], d_ptr->color_matrix[3]};
+        glm::vec4 vec2 = {d_ptr->color_matrix[8], d_ptr->color_matrix[9], d_ptr->color_matrix[10], d_ptr->color_matrix[11]};
+
+        auto program = d_ptr->graphics->gs_get_effect_by_name(d_ptr->conversion_techs[i]);
+        program->gs_effect_set_texture("image", texture);
+        if (i == 0) {
+            program->gs_effect_set_param("color_vec0", vec0);
+        } else if (i == 1) {
+            program->gs_effect_set_param("color_vec1", vec1);
+            if (!d_ptr->convert_textures[i+1])
+                program->gs_effect_set_param("color_vec2", vec2);
+            program->gs_effect_set_param("width_i", d_ptr->conversion_width_i);
+        } else if (i == 2) {
+            program->gs_effect_set_param("color_vec2", vec2);
+            program->gs_effect_set_param("width_i", d_ptr->conversion_width_i);
+        }
+    }
+
+    gs_enable_blending(true);
+
+    d_ptr->texture_converted = true;
+}
+
+void lite_obs_core_video::stage_output_texture(int cur_texture)
+{
+    for (int c = 0; c < NUM_CHANNELS; ++c) {
+        auto surface = d_ptr->mapped_surfaces[c].lock();
+        if (surface) {
+            surface->gs_stagesurface_unmap();
+            d_ptr->mapped_surfaces[c].reset();
+        }
+    }
+
+    if (!d_ptr->gpu_conversion) {
+        auto copy = d_ptr->copy_surfaces[cur_texture][0];
+        if (copy)
+            copy->gs_stagesurface_stage_texture(d_ptr->output_texture);
+
+        d_ptr->textures_copied[cur_texture] = true;
+    } else if (d_ptr->texture_converted) {
+        for (int i = 0; i < NUM_CHANNELS; i++) {
+            auto copy = d_ptr->copy_surfaces[cur_texture][i];
+            if (copy)
+                copy->gs_stagesurface_stage_texture(d_ptr->convert_textures[i]);
+        }
+
+        d_ptr->textures_copied[cur_texture] = true;
+    }
+}
+
 void lite_obs_core_video::render_video(bool raw_active, const bool gpu_active, int cur_texture, int prev_texture)
 {
+    gs_begin_scene();
 
+    gs_enable_depth_test(false);
+    gs_set_cull_mode(gs_cull_mode::GS_NEITHER);
+
+    render_main_texture();
+
+    if (raw_active || gpu_active) {
+        auto texture = render_output_texture();
+
+#ifdef _WIN32
+        if (gpu_active)
+            gs_flush();
+#endif
+
+        if (d_ptr->gpu_conversion)
+            render_convert_texture(texture);
+
+#ifdef _WIN32
+        if (gpu_active) {
+            gs_flush();
+            //output_gpu_encoders(video, raw_active); todo
+        }
+#endif
+
+        if (raw_active)
+            stage_output_texture(cur_texture);
+    }
+
+    gs_set_render_target(NULL, NULL);
+    gs_enable_blending(true);
+
+    gs_end_scene();
 }
 
 bool lite_obs_core_video::download_frame(int prev_texture, video_data *frame)
 {
+    if (!d_ptr->textures_copied[prev_texture])
+        return false;
 
+    for (int channel = 0; channel < NUM_CHANNELS; ++channel) {
+        auto surface = d_ptr->copy_surfaces[prev_texture][channel];
+        if (surface) {
+            if (!surface->gs_stagesurface_map(&frame->frame.data[channel], &frame->frame.linesize[channel]))
+                return false;
+
+            d_ptr->mapped_surfaces[channel] = surface;
+        }
+    }
     return true;
 }
-
+#include <QCoreApplication>
+#include <QFile>
 void lite_obs_core_video::output_video_data(video_data *input_frame, int count)
 {
-
+    blog(LOG_DEBUG, "++++++++++++++");
+    //    //todo output to encoder
+    QFile cc("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/files/aa.nv12");
+//    QFile cc("ff.nv12");
+    cc.open(QFile::ReadWrite);
+    cc.write((char *)input_frame->frame.data[0], d_ptr->output_width*d_ptr->output_height);
+    cc.write((char *)input_frame->frame.data[1], d_ptr->output_width*d_ptr->output_height/2);
+    cc.close();
 }
 
 void lite_obs_core_video::output_frame(bool raw_active, const bool gpu_active)
@@ -190,9 +399,6 @@ void lite_obs_core_video::output_frame(bool raw_active, const bool gpu_active)
 
     video_data frame;
     bool frame_ready = 0;
-    struct obs_source *temp;
-
-    memset(&frame, 0, sizeof(struct video_data));
 
     gs_enter_contex(d_ptr->graphics);
 
@@ -225,6 +431,7 @@ bool lite_obs_core_video::graphics_loop(obs_graphics_context *context)
     uint64_t frame_start = os_gettime_ns();
     uint64_t frame_time_ns;
     bool raw_active = d_ptr->raw_active > 0;
+    raw_active = true; // todo
     const bool gpu_active = d_ptr->gpu_encoder_active > 0;
     const bool active = raw_active || gpu_active;
 
@@ -261,7 +468,7 @@ bool lite_obs_core_video::graphics_loop(obs_graphics_context *context)
     return !stop_requested;
 }
 
-void lite_obs_core_video::graphics_thread_internal()
+void lite_obs_core_video::graphics_task_func()
 {
     const uint64_t interval = d_ptr->video->video_output_get_frame_time();
 
@@ -284,10 +491,9 @@ void lite_obs_core_video::graphics_thread_internal()
         ;
 }
 
-void lite_obs_core_video::graphics_thread(void *param)
+std::unique_ptr<graphics_subsystem> &lite_obs_core_video::graphics()
 {
-    lite_obs_core_video *p = (lite_obs_core_video *)param;
-    p->graphics_thread_internal();
+    return d_ptr->graphics;
 }
 
 void lite_obs_core_video::set_video_matrix(obs_video_info *ovi)
@@ -322,22 +528,22 @@ void lite_obs_core_video::calc_gpu_conversion_sizes()
     switch (d_ptr->output_format) {
     case video_format::VIDEO_FORMAT_I420:
         d_ptr->conversion_needed = true;
-        d_ptr->conversion_techs[0] = "Planar_Y";
-        d_ptr->conversion_techs[1] = "Planar_U_Left";
-        d_ptr->conversion_techs[2] = "Planar_V_Left";
+        d_ptr->conversion_techs[0] = "Convert_Planar_Y";
+        d_ptr->conversion_techs[1] = "Convert_Planar_U_Left";
+        d_ptr->conversion_techs[2] = "Convert_Planar_V_Left";
         d_ptr->conversion_width_i = 1.f / (float)d_ptr->output_width;
         break;
     case video_format::VIDEO_FORMAT_NV12:
         d_ptr->conversion_needed = true;
-        d_ptr->conversion_techs[0] = "NV12_Y";
-        d_ptr->conversion_techs[1] = "NV12_UV";
+        d_ptr->conversion_techs[0] = "Convert_NV12_Y";
+        d_ptr->conversion_techs[1] = "Convert_NV12_UV";
         d_ptr->conversion_width_i = 1.f / (float)d_ptr->output_width;
         break;
     case video_format::VIDEO_FORMAT_I444:
         d_ptr->conversion_needed = true;
-        d_ptr->conversion_techs[0] = "Planar_Y";
-        d_ptr->conversion_techs[1] = "Planar_U";
-        d_ptr->conversion_techs[2] = "Planar_V";
+        d_ptr->conversion_techs[0] = "Convert_Planar_Y";
+        d_ptr->conversion_techs[1] = "Convert_Planar_U";
+        d_ptr->conversion_techs[2] = "Convert_Planar_V";
         break;
     default:
         break;
@@ -460,33 +666,68 @@ bool lite_obs_core_video::init_textures()
     return true;
 }
 
-int lite_obs_core_video::lite_obs_init_graphics()
+bool lite_obs_core_video::init_graphics()
 {
     if (d_ptr->graphics)
-        return GS_SUCCESS;
+        return true;
 
     auto gs = std::make_unique<graphics_subsystem>();
-    auto errcode = gs->gs_create();
-    if (errcode != GS_SUCCESS) {
-        blog(LOG_DEBUG, "lite_obs_core_video_init fail.");
-        return errcode;
-    }
-
-    gs_enter_contex(gs);
-    auto res = gs->gs_effect_init();
-    if (res != GS_SUCCESS) {
-        gs_leave_context();
-        return GS_ERROR_FAIL;
-    }
-    gs_leave_context();
+    if (!gs->graphics_init())
+        return false;
 
     d_ptr->graphics = std::move(gs);
-    return GS_SUCCESS;
+    return true;
 }
 
-void lite_obs_core_video::lite_obs_free_graphics()
+void lite_obs_core_video::graphics_thread_internal()
 {
+    do {
+        if (!init_graphics()) {
+            break;
+        }
+
+        gs_enter_contex(d_ptr->graphics);
+        if (d_ptr->ovi.gpu_conversion && !init_gpu_conversion()) {
+            clear_gpu_conversion_textures();
+            gs_leave_context();
+            break;
+        }
+
+        if (!init_textures()) {
+            gs_leave_context();
+            break;
+        }
+        gs_leave_context();
+
+        graphics_task_func();
+    } while(false);
+
+    gs_enter_contex(d_ptr->graphics);
+
+    for (size_t c = 0; c < NUM_CHANNELS; c++) {
+        auto surface = d_ptr->mapped_surfaces[c].lock();
+        if (surface) {
+            surface->gs_stagesurface_unmap();
+            d_ptr->mapped_surfaces[c].reset();
+        }
+    }
+
+    clear_gpu_copy_surface();
+    d_ptr->render_texture.reset();
+    clear_gpu_conversion_textures();
+    d_ptr->output_texture.reset();
+
+    gs_leave_context();
+
     d_ptr->graphics.reset();
+
+    blog(LOG_DEBUG, "graphics_thread_internal stopped.");
+}
+
+void lite_obs_core_video::graphics_thread(void *param)
+{
+    lite_obs_core_video *p = (lite_obs_core_video *)param;
+    p->graphics_thread_internal();
 }
 
 static inline void make_video_info(video_output_info *vi, obs_video_info *ovi)
@@ -501,20 +742,11 @@ static inline void make_video_info(video_output_info *vi, obs_video_info *ovi)
     vi->colorspace = ovi->colorspace;
     vi->cache_size = 6;
 }
-int lite_obs_core_video::lite_obs_core_video_init(obs_video_info *ovi)
+
+int lite_obs_core_video::lite_obs_start_video(obs_video_info *ovi)
 {
     video_output_info vi;
     make_video_info(&vi, ovi);
-
-    d_ptr->output_format = ovi->output_format;
-    d_ptr->base_width = ovi->base_width;
-    d_ptr->base_height = ovi->base_height;
-    d_ptr->output_width = ovi->output_width;
-    d_ptr->output_height = ovi->output_height;
-    d_ptr->gpu_conversion = ovi->gpu_conversion;
-    d_ptr->scale_type = ovi->scale_type;
-
-    set_video_matrix(ovi);
 
     auto video = std::make_shared<video_output>();
     auto errorcode = video->video_output_open(&vi);
@@ -527,27 +759,20 @@ int lite_obs_core_video::lite_obs_core_video_init(obs_video_info *ovi)
         }
         return OBS_VIDEO_FAIL;
     }
-
     d_ptr->video = video;
 
-    gs_enter_contex(d_ptr->graphics);
+    d_ptr->output_format = ovi->output_format;
+    d_ptr->base_width = ovi->base_width;
+    d_ptr->base_height = ovi->base_height;
+    d_ptr->output_width = ovi->output_width;
+    d_ptr->output_height = ovi->output_height;
+    d_ptr->gpu_conversion = ovi->gpu_conversion;
 
-    if (ovi->gpu_conversion && !init_gpu_conversion()) {
-        clear_gpu_conversion_textures();
-        gs_leave_context();
-        return OBS_VIDEO_FAIL;
-    }
-
-    if (!init_textures()) {
-        gs_leave_context();
-        return OBS_VIDEO_FAIL;
-    }
-
-    gs_leave_context();
-
-    d_ptr->video_thread = std::thread(lite_obs_core_video::graphics_thread, this);
-    d_ptr->thread_initialized = true;
+    set_video_matrix(ovi);
     d_ptr->ovi = *ovi;
+
+    d_ptr->thread_initialized = true;
+    d_ptr->video_thread = std::thread(lite_obs_core_video::graphics_thread, this);
     return OBS_VIDEO_SUCCESS;
 }
 
@@ -558,15 +783,22 @@ bool lite_obs_core_video::lite_obs_video_active()
 
 void lite_obs_core_video::lite_obs_stop_video()
 {
-    if (!d_ptr->video)
-        return;
-
-    d_ptr->video->video_output_stop();
+    if (d_ptr->video) {
+        d_ptr->video->video_output_stop();
+        blog(LOG_DEBUG, "video output stopped.");
+    }
 
     if (d_ptr->thread_initialized) {
         if (d_ptr->video_thread.joinable()) {
             d_ptr->video_thread.join();
             d_ptr->thread_initialized = false;
+            blog(LOG_DEBUG, "video thread stopped");
         }
+    }
+
+    if (d_ptr->video) {
+        d_ptr->video->video_output_close();
+        d_ptr->video.reset();
+        blog(LOG_DEBUG, "video output destroyed.");
     }
 }

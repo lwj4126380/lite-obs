@@ -34,6 +34,11 @@ lite_obs::lite_obs()
     d_ptr = std::make_unique<lite_obs_private>();
 }
 
+lite_obs::~lite_obs()
+{
+    obs_shutdown();
+}
+
 void lite_obs::add_source(std::shared_ptr<lite_source> source, bool is_audio_source)
 {
     if (is_audio_source) {
@@ -86,19 +91,29 @@ int lite_obs::obs_reset_video(obs_video_info *ovi)
             !size_valid(ovi->base_width, ovi->base_height))
             return OBS_VIDEO_INVALID_PARAM;
 
+    if (ovi->output_format != video_format::VIDEO_FORMAT_NV12
+            && ovi->output_format != video_format::VIDEO_FORMAT_I420
+            && ovi->output_format != video_format::VIDEO_FORMAT_I444) {
+        blog(LOG_DEBUG, "video output format request one of (NV12 I420 I444)");
+        return OBS_VIDEO_INVALID_PARAM;
+    }
+
     d_ptr->video.lite_obs_stop_video();
-    d_ptr->video.lite_obs_video_free_data();
 
     ovi->output_width &= 0xFFFFFFFC;
     ovi->output_height &= 0xFFFFFFFE;
 
-    auto errorcode = d_ptr->video.lite_obs_init_graphics();
-    if (errorcode != OBS_VIDEO_SUCCESS) {
-        d_ptr->video.lite_obs_free_graphics();
-        return errorcode;
-    }
+    return d_ptr->video.lite_obs_start_video(ovi);
+}
 
-    return d_ptr->video.lite_obs_core_video_init(ovi);
+void lite_obs::obs_enter_graphics_context()
+{
+    gs_enter_contex(d_ptr->video.graphics());
+}
+
+void lite_obs::obs_leave_graphics_context()
+{
+    gs_leave_context();
 }
 
 void lite_obs::obs_shutdown()
@@ -108,10 +123,10 @@ void lite_obs::obs_shutdown()
 
 //    obs_free_audio();
 //    obs_free_data();
-    d_ptr->video.lite_obs_video_free_data();
+
 //    obs_rtc_capture_free(true);
 //    obs_free_hotkeys();
-    d_ptr->video.lite_obs_free_graphics();
+
 //    proc_handler_destroy(obs->procs);
 //    signal_handler_destroy(obs->signals);
 //    obs->procs = NULL;
@@ -125,7 +140,42 @@ void lite_obs::obs_shutdown()
 #include <glm/vec4.hpp>
 int lite_obs::obs_init_graphics()
 {
-//    gs_enter_contex(d_ptr->video.lite_obs_graphics());
+    gs_enter_contex(d_ptr->video.graphics());
+    auto render_texture = gs_texture_create(1920, 1080, gs_color_format::GS_RGBA, 1, NULL, GS_RENDER_TARGET);
+
+    glm::vec4 clear_color(0);
+    gs_set_render_target(render_texture, NULL);
+    gs_clear(GS_CLEAR_COLOR, &clear_color, 1.0f, 0);
+
+    gs_set_render_size(1920, 1080);
+
+
+
+        QImage f(":/test.jpg");
+        f = f.convertedTo(QImage::Format_RGBA8888);
+        auto b = f.bits();
+        auto test_texture = gs_texture_create(f.width(), f.height(), gs_color_format::GS_RGBA, 1, (const uint8_t **)&b, GS_DYNAMIC);
+
+
+        auto program = d_ptr->video.graphics()->gs_get_effect_by_name("Default_Draw");
+        gs_set_cur_effect(program);
+
+        gs_technique_begin();
+        program->gs_effect_set_texture("image", test_texture);
+        d_ptr->video.graphics()->gs_draw_sprite(test_texture, 0, test_texture->gs_texture_get_width(), test_texture->gs_texture_get_height());
+        gs_technique_end();
+
+        auto ss = gs_stagesurface_create(1920, 1080, gs_color_format::GS_RGBA);
+        ss->gs_stagesurface_stage_texture(render_texture);
+        uint8_t *d;
+        uint32_t lin;
+        ss->gs_stagesurface_map(&d, &lin);
+        QFile ff("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/files/cccc.rgba");
+        ff.open(QFile::ReadWrite);
+        ff.write((char *)d, 1920 * 1080 * 4);
+        ff.close();
+        ss->gs_stagesurface_unmap();
+//    gs_enter_contex(d_ptr->video.graphics());
 //        auto target = std::make_shared<gs_texture_render>(gs_color_format::GS_RGBA, gs_zstencil_format::GS_ZS_NONE);
 //        target->gs_texrender_reset();
 
@@ -144,7 +194,7 @@ int lite_obs::obs_init_graphics()
 //        u_tex->gs_texture_set_image((const uint8_t *)(data.data()+640*360), 320, false);
 //        v_tex->gs_texture_set_image((const uint8_t *)(data.data()+640*360 + 640*360/4), 320, false);
 
-//        auto program = d_ptr->video.lite_obs_graphics()->gs_get_effect_by_name("I420_Reverse");
+//        auto program = d_ptr->video.graphics()->gs_get_effect_by_name("Convert_I420_Reverse");
 //        gs_set_cur_effect(program);
 
 //        float float_range_min[3] = {16.0f / 255.0f, 16.0f / 255.0f, 16.0f / 255.0f};
@@ -206,7 +256,7 @@ int lite_obs::obs_init_graphics()
 //            uint32_t linesize = 0;
 //            if (copy->gs_stagesurface_map(&data, &linesize)) {
 
-//                QFile f("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/files/600.rgba");
+//                QFile f("600.rgba");
 //                f.remove();
 //                f.open(QFile::ReadWrite);
 //                f.write((char *)data, 640*360*4);
@@ -223,7 +273,7 @@ int lite_obs::obs_init_graphics()
 //        y_tex.reset();
 //        u_tex.reset();
 //        v_tex.reset();
-////        img_tex.reset();
+
 
 //        gs_leave_context();
 

@@ -13,15 +13,6 @@ struct obs_audio_data {
     uint64_t timestamp{};
 };
 
-enum class obs_scale_type {
-    OBS_SCALE_DISABLE,
-    OBS_SCALE_POINT,
-    OBS_SCALE_BICUBIC,
-    OBS_SCALE_BILINEAR,
-    OBS_SCALE_LANCZOS,
-    OBS_SCALE_AREA,
-};
-
 struct obs_video_info {
     uint32_t fps_num{}; /**< Output FPS numerator */
     uint32_t fps_den{}; /**< Output FPS denominator */
@@ -38,6 +29,4 @@ struct obs_video_info {
 
     video_colorspace colorspace{}; /**< YUV type (if YUV) */
     video_range_type range{};      /**< YUV range (if YUV) */
-
-    obs_scale_type scale_type{}; /**< How to scale if scaling */
 };

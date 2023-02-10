@@ -4,71 +4,24 @@
 #include <QTimer>
 #include <thread>
 #include <QElapsedTimer>
+#include <QLoggingCategory>
 #include <QFile>
+#include <QSGRendererInterface>
+#include <QQuickWindow>
 #include "lite_obs.h"
 #include "graphics/gs_device.h"
+#include "graphics/gs_texture.h"
+
+extern std::shared_ptr<gs_texture> test_texture;
 
 int main(int argc, char *argv[])
 {
+    qputenv("QSG_RENDER_LOOP", "basic");
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QGuiApplication app(argc, argv);
 
-//    audio_output *output = new audio_output;
-//    audio_output_info info;
-//    info.format = audio_format::AUDIO_FORMAT_16BIT;
-//    info.name = "Audio";
-//    info.samples_per_sec = 44100;
-//    info.speakers = speaker_layout::SPEAKERS_STEREO;
-
-//    output->audio_output_open(&info);
-
-//    video_frame frame;
-//    frame.video_frame_init(video_format::VIDEO_FORMAT_BGRA, 100, 100);
-//    uint8_t dd[5] = {0x1, 2, 3, 4, 5};
-//    memcpy(frame.data[0], dd, 5);
-//    video_frame *f = &frame;
-//    video_data data;
-//    data.frame = *f;
-
-////    std::unique_ptr<audio_resampler> resampler = std::make_unique<audio_resampler>();
-////    resample_info dst;
-////    dst.format = audio_format::AUDIO_FORMAT_FLOAT;
-////    dst.samples_per_sec = 44100;
-////    dst.speakers = speaker_layout::SPEAKERS_STEREO;
-
-////    resample_info src;
-////    src.format = audio_format::AUDIO_FORMAT_16BIT;
-////    src.samples_per_sec = 48000;
-////    src.speakers = speaker_layout::SPEAKERS_MONO;
-////    qDebug() << resampler->create(&dst, &src);
-
-////    QFile f("C:\\Users\\luweijia\\Desktop\\48000_2_s16le.pcm");
-////    f.open(QFile::ReadOnly);
-////    QFile out("D:\\44100_2_float.pcm");
-////    out.open(QFile::ReadWrite);
-////    int cc = 1024 * 2;
-////    while(true) {
-////        auto bytes = f.read(cc);
-////        if (bytes.size() != cc)
-////            break;
-
-////        uint8_t *output[MAX_AV_PLANES];
-////        uint32_t frames;
-////        uint64_t offset;
-
-////        uint8_t *input[MAX_AV_PLANES] = { nullptr };
-////        input[0] = (uint8_t *)bytes.data();
-
-////        memset(output, 0, sizeof(output));
-
-////        resampler->do_resample(output, &frames, &offset, (const uint8_t *const *)input, 1024);
-////        out.write((char *)output[0], frames * 2 * 4);
-////    }
-////    out.close();
-////    f.close();
-
-//    output->audio_output_close();
-//    delete output;
-
+    QLoggingCategory::setFilterRules("qt.scenegraph.general=true");
+    qSetMessagePattern("%{category}:%{message}");
     QQmlApplicationEngine engine;
     const QUrl url(QStringLiteral("qrc:/main.qml"));
 //    QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
@@ -78,24 +31,37 @@ int main(int argc, char *argv[])
 //    }, Qt::QueuedConnection);
     engine.load(url);
 
-    QTimer::singleShot(3000, [](){
-        obs_video_info info;
-        info.base_width = 1920;
-        info.base_height = 1080;
-        info.fps_den = 1;
-        info.fps_num = 60;
-        info.output_width = 1920;
-        info.output_height = 1080;
-        info.output_format = video_format::VIDEO_FORMAT_NV12;
-        info.gpu_conversion = true;
-        info.colorspace = video_colorspace::VIDEO_CS_601;
-        info.range = video_range_type::VIDEO_RANGE_PARTIAL;
-        info.scale_type = obs_scale_type::OBS_SCALE_BICUBIC;
-        obs.obs_reset_video(&info);
+    obs_video_info info;
+    info.base_width = 1920;
+    info.base_height = 1080;
+    info.fps_den = 1;
+    info.fps_num = 60;
+    info.output_width = 1280;
+    info.output_height = 720;
+    info.output_format = video_format::VIDEO_FORMAT_NV12;
+    info.gpu_conversion = true;
+    info.colorspace = video_colorspace::VIDEO_CS_601;
+    info.range = video_range_type::VIDEO_RANGE_PARTIAL;
+    obs.obs_reset_video(&info);
 
-        obs.obs_shutdown();
+    QTimer t;
+    t.setSingleShot(true);
+    QObject::connect(&t, &QTimer::timeout, [=](){
 
+        QImage f(":/test.jpg");
+        f = f.convertedTo(QImage::Format_RGBA8888);
+        auto b = f.bits();
+        obs.obs_enter_graphics_context();
+        test_texture = gs_texture_create(f.width(), f.height(), gs_color_format::GS_RGBA, 1, (const uint8_t **)&b, GS_DYNAMIC);
+        blog(LOG_DEBUG, test_texture ? "111111111111 " : " 2222222222222222");
+        obs.obs_leave_graphics_context();
     });
+    t.start(1000);
+
+    QTimer::singleShot(3000, [](){
+        qApp->quit();
+    });
+
 
     return app.exec();
 }

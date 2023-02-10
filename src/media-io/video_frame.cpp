@@ -4,6 +4,7 @@
 
 video_frame::video_frame()
 {
+    data.resize(8);
 }
 
 video_frame::~video_frame()

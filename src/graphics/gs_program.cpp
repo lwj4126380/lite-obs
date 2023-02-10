@@ -18,6 +18,7 @@ struct program_param {
 
 struct gs_program_private
 {
+    std::string name{};
     GLuint obj{};
     std::shared_ptr<gs_shader> vertex_shader{};
     std::shared_ptr<gs_shader> pixel_shader{};
@@ -33,9 +34,10 @@ struct gs_program_private
     }
 };
 
-gs_program::gs_program()
+gs_program::gs_program(const std::string &name)
 {
     d_ptr = std::make_unique<gs_program_private>();
+    d_ptr->name = name;
 }
 
 gs_program::~gs_program()
@@ -119,6 +121,11 @@ error_detach_neither:
     return false;
 }
 
+const std::string &gs_program::gs_program_name()
+{
+    return d_ptr->name;
+}
+
 void gs_program::gs_effect_set_texture(const char *name, std::shared_ptr<gs_texture> tex)
 {
     auto p = gs_effect_get_param_by_name(name);
@@ -148,6 +155,17 @@ void gs_program::gs_effect_set_param(const char *name, const glm::vec4 &value)
 
     p->param->cur_value.resize(sizeof(glm::vec4));
     memcpy(p->param->cur_value.data(), &value, sizeof(glm::vec4));
+    p->param->changed = true;
+}
+
+void gs_program::gs_effect_set_param(const char *name, const glm::vec2 &value)
+{
+    auto p = gs_effect_get_param_by_name(name);
+    if (!p)
+        return;
+
+    p->param->cur_value.resize(sizeof(glm::vec2));
+    memcpy(p->param->cur_value.data(), &value, sizeof(glm::vec2));
     p->param->changed = true;
 }
 
