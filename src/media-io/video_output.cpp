@@ -108,6 +108,21 @@ void video_output::video_output_close()
     os_sem_destroy(d_ptr->update_semaphore);
 }
 
+uint32_t video_output::video_output_get_width()
+{
+    return d_ptr->info.width;
+}
+
+uint32_t video_output::video_output_get_height()
+{
+    return d_ptr->info.height;
+}
+
+video_output_info *video_output::video_output_get_info()
+{
+    return &d_ptr->info;
+}
+
 bool video_output::video_output_connect(const video_scale_info *conversion, void (*callback)(void *, video_data *), void *param)
 {
     bool success = false;

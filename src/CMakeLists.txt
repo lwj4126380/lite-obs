@@ -46,6 +46,7 @@ set(liteobs_HEADERS
 
     lite_source.h
     lite_output.h
+    lite_encoder_info.h
     lite_encoder.h
 
     lite_obs_core_video.h
