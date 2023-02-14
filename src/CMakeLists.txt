@@ -24,6 +24,7 @@ set(liteobs_util_HEADERS
     util/threading.h
     util/log.h
     util/circlebuf.h
+    util/serialize_op.h
 )
 
 set(liteobs_util_SOURCES
@@ -51,6 +52,7 @@ set(liteobs_HEADERS
 
     lite_obs_core_video.h
 
+    lite_obs_avc.h
 
     obs-defs.h
     lite-obs2_global.h
@@ -74,6 +76,8 @@ set(liteobs_SOURCES
     lite_encoder.cpp
 
     lite_obs_core_video.cpp
+
+    lite_obs_avc.cpp
 
     lite_obs.cpp
 
@@ -110,6 +114,19 @@ set(liteobs_graphics_SOURCES
     graphics/gs_stagesurf.cpp
 )
 
+set(liteobs_plugin_HEADERS
+    encoder/obs-ffmpeg-formats.h
+    encoder/lite_ffmpeg_video_encoder.h
+
+    output/null_output.h
+    )
+
+set(liteobs_plugin_SOURCES
+    encoder/lite_ffmpeg_video_encoder.cpp
+
+    output/null_output.cpp
+    )
+
 #platform deps
 if(WIN32)
     add_subdirectory("${CMAKE_SOURCE_DIR}/third-party/glad")
@@ -145,6 +162,8 @@ qt_add_executable(lite-obs
   ${liteobs_graphics_SOURCES}
   ${liteobs_HEADERS}
   ${liteobs_SOURCES}
+  ${liteobs_plugin_HEADERS}
+  ${liteobs_plugin_SOURCES}
 )
 
 target_link_libraries(lite-obs

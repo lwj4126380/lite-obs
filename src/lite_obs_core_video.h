@@ -14,14 +14,21 @@ public:
     lite_obs_core_video();
     ~lite_obs_core_video();
 
+    void lite_obs_core_video_change_raw_active(bool add);
+
     int lite_obs_start_video(obs_video_info *ovi);
 
     bool lite_obs_video_active();
     void lite_obs_stop_video();
 
-    static void graphics_thread(void *param);
+    std::shared_ptr<video_output> core_video();
+    obs_video_info *lite_obs_core_video_info();
 
+    static void graphics_thread(void *param);
     std::unique_ptr<graphics_subsystem> &graphics();
+
+    uint32_t total_frames();
+    uint32_t lagged_frames();
 
 private:
     void set_video_matrix(obs_video_info *ovi);
@@ -51,6 +58,8 @@ private:
     std::shared_ptr<gs_texture> render_output_texture();
     void render_video(bool raw_active, const bool gpu_active, int cur_texture, int prev_texture);
     bool download_frame(int prev_texture, struct video_data *frame);
+    void set_gpu_converted_data_internal(bool using_nv12_tex, class video_frame *output, const struct video_data *input, video_format format, uint32_t width, uint32_t height);
+    void set_gpu_converted_data(class video_frame *output, const struct video_data *input, const struct video_output_info *info);
     void output_video_data(video_data *input_frame, int count);
     void output_frame(bool raw_active, const bool gpu_active);
     bool graphics_loop(obs_graphics_context *context);

@@ -10,6 +10,9 @@ struct lite_obs_data;
 struct lite_obs_private;
 
 class lite_source;
+class video_output;
+class audio_output;
+class lite_obs_core_video;
 class lite_obs
 {
 public:
@@ -24,10 +27,9 @@ public:
     void obs_enter_graphics_context();
     void obs_leave_graphics_context();
 
-    void obs_shutdown();
+    lite_obs_core_video *obs_core_video();
 
-private:
-    int obs_init_graphics();
+    void obs_shutdown();
 
 private:
     std::unique_ptr<lite_obs_private> d_ptr{};

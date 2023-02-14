@@ -56,6 +56,7 @@ public:
     void video_output_unlock_frame();
 
     uint64_t video_output_get_frame_time();
+    uint32_t video_output_get_total_frames();
 
 private:
     void video_thread_internal();

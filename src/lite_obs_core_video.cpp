@@ -92,6 +92,14 @@ lite_obs_core_video::~lite_obs_core_video()
 
 }
 
+void lite_obs_core_video::lite_obs_core_video_change_raw_active(bool add)
+{
+    if (add)
+        d_ptr->raw_active++;
+    else
+        d_ptr->raw_active--;
+}
+
 void lite_obs_core_video::clear_base_frame_data(void)
 {
     d_ptr->texture_rendered = false;
@@ -379,21 +387,149 @@ bool lite_obs_core_video::download_frame(int prev_texture, video_data *frame)
     }
     return true;
 }
-#include <QCoreApplication>
-#include <QFile>
+
+static const uint8_t *set_gpu_converted_plane(uint32_t width, uint32_t height,
+                                              uint32_t linesize_input,
+                                              uint32_t linesize_output,
+                                              const uint8_t *in, uint8_t *out)
+{
+    if ((width == linesize_input) && (width == linesize_output)) {
+        size_t total = width * height;
+        memcpy(out, in, total);
+        in += total;
+    } else {
+        for (size_t y = 0; y < height; y++) {
+            memcpy(out, in, width);
+            out += linesize_output;
+            in += linesize_input;
+        }
+    }
+
+    return in;
+}
+
+void lite_obs_core_video::set_gpu_converted_data_internal(bool using_nv12_tex, video_frame *output, const struct video_data *input, video_format format, uint32_t width, uint32_t height)
+{
+    if (using_nv12_tex) {
+        const uint8_t *const in_uv = set_gpu_converted_plane(
+                    width, height, input->frame.linesize[0], output->linesize[0],
+                input->frame.data[0], output->data[0]);
+
+        const uint32_t height_d2 = height / 2;
+        set_gpu_converted_plane(width, height_d2, input->frame.linesize[0],
+                output->linesize[1], in_uv,
+                output->data[1]);
+    } else {
+        switch (format) {
+        case video_format::VIDEO_FORMAT_I420: {
+            set_gpu_converted_plane(width, height,
+                                    input->frame.linesize[0],
+                    output->linesize[0],
+                    input->frame.data[0],
+                    output->data[0]);
+
+            const uint32_t width_d2 = width / 2;
+            const uint32_t height_d2 = height / 2;
+
+            set_gpu_converted_plane(width_d2, height_d2,
+                                    input->frame.linesize[1],
+                    output->linesize[1],
+                    input->frame.data[1],
+                    output->data[1]);
+
+            set_gpu_converted_plane(width_d2, height_d2,
+                                    input->frame.linesize[2],
+                    output->linesize[2],
+                    input->frame.data[2],
+                    output->data[2]);
+
+            break;
+        }
+        case video_format::VIDEO_FORMAT_NV12: {
+            set_gpu_converted_plane(width, height,
+                                    input->frame.linesize[0],
+                    output->linesize[0],
+                    input->frame.data[0],
+                    output->data[0]);
+
+            const uint32_t height_d2 = height / 2;
+            set_gpu_converted_plane(width, height_d2,
+                                    input->frame.linesize[1],
+                    output->linesize[1],
+                    input->frame.data[1],
+                    output->data[1]);
+
+            break;
+        }
+        case video_format::VIDEO_FORMAT_I444: {
+            set_gpu_converted_plane(width, height,
+                                    input->frame.linesize[0],
+                    output->linesize[0],
+                    input->frame.data[0],
+                    output->data[0]);
+
+            set_gpu_converted_plane(width, height,
+                                    input->frame.linesize[1],
+                    output->linesize[1],
+                    input->frame.data[1],
+                    output->data[1]);
+
+            set_gpu_converted_plane(width, height,
+                                    input->frame.linesize[2],
+                    output->linesize[2],
+                    input->frame.data[2],
+                    output->data[2]);
+
+            break;
+        }
+
+        case video_format::VIDEO_FORMAT_NONE:
+        case video_format::VIDEO_FORMAT_YVYU:
+        case video_format::VIDEO_FORMAT_YUY2:
+        case video_format::VIDEO_FORMAT_UYVY:
+        case video_format::VIDEO_FORMAT_RGBA:
+        case video_format::VIDEO_FORMAT_BGRA:
+        case video_format::VIDEO_FORMAT_BGRX:
+        case video_format::VIDEO_FORMAT_Y800:
+        case video_format::VIDEO_FORMAT_BGR3:
+        case video_format::VIDEO_FORMAT_I422:
+        case video_format::VIDEO_FORMAT_I40A:
+        case video_format::VIDEO_FORMAT_I42A:
+        case video_format::VIDEO_FORMAT_YUVA:
+        case video_format::VIDEO_FORMAT_AYUV:
+            /* unimplemented */
+            ;
+        }
+    }
+}
+
+void lite_obs_core_video::set_gpu_converted_data(video_frame *output,
+                                                 const struct video_data *input,
+                                                 const struct video_output_info *info)
+{
+    set_gpu_converted_data_internal(false, output, input,
+                                    info->format, info->width,
+                                    info->height);
+}
+
 void lite_obs_core_video::output_video_data(video_data *input_frame, int count)
 {
-    static int64_t ss = 0;
-    int64_t now = os_gettime_ns();
-    blog(LOG_DEBUG, "%lld", (now-ss)/1000000);
-    ss = now;
-    //    //todo output to encoder
-//    QFile cc("/storage/emulated/0/Android/data/org.qtproject.example.lite_obs/files/aa.nv12");
-////    QFile cc("ff.nv12");
-//    cc.open(QFile::ReadWrite);
-//    cc.write((char *)input_frame->frame.data[0], d_ptr->output_width*d_ptr->output_height);
-//    cc.write((char *)input_frame->frame.data[1], d_ptr->output_width*d_ptr->output_height/2);
-//    cc.close();
+    video_frame output_frame;
+    bool locked;
+
+    const auto info = d_ptr->video->video_output_get_info();
+
+    locked = d_ptr->video->video_output_lock_frame(&output_frame, count, input_frame->timestamp);
+    if (locked) {
+        if (d_ptr->gpu_conversion) {
+            set_gpu_converted_data(&output_frame, input_frame, info);
+        } else {
+            //todo
+            //copy_rgbx_frame(&output_frame, input_frame, info);
+        }
+
+        d_ptr->video->video_output_unlock_frame();
+    }
 }
 
 void lite_obs_core_video::output_frame(bool raw_active, const bool gpu_active)
@@ -435,7 +571,6 @@ bool lite_obs_core_video::graphics_loop(obs_graphics_context *context)
     uint64_t frame_start = os_gettime_ns();
     uint64_t frame_time_ns;
     bool raw_active = d_ptr->raw_active > 0;
-    raw_active = true; // todo
     const bool gpu_active = d_ptr->gpu_encoder_active > 0;
     const bool active = raw_active || gpu_active;
 
@@ -498,6 +633,16 @@ void lite_obs_core_video::graphics_task_func()
 std::unique_ptr<graphics_subsystem> &lite_obs_core_video::graphics()
 {
     return d_ptr->graphics;
+}
+
+uint32_t lite_obs_core_video::total_frames()
+{
+    return d_ptr->total_frames;
+}
+
+uint32_t lite_obs_core_video::lagged_frames()
+{
+    return d_ptr->lagged_frames;
 }
 
 void lite_obs_core_video::set_video_matrix(obs_video_info *ovi)
@@ -795,3 +940,14 @@ void lite_obs_core_video::lite_obs_stop_video()
         blog(LOG_DEBUG, "video output destroyed.");
     }
 }
+
+std::shared_ptr<video_output> lite_obs_core_video::core_video()
+{
+    return d_ptr->video;
+}
+
+obs_video_info *lite_obs_core_video::lite_obs_core_video_info()
+{
+    return &d_ptr->ovi;
+}
+

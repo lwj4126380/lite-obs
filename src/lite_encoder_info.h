@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 #include <memory>
+#include <atomic>
+#include <vector>
 #include "media-io/media-io-defs.h"
 
 #define OBS_ENCODER_CAP_DEPRECATED (1 << 0)
@@ -15,8 +17,7 @@ enum class obs_encoder_type {
 
 class lite_obs_encoder;
 struct encoder_packet {
-    uint8_t *data{}; /**< Packet data */
-    size_t size{};   /**< Packet size */
+    std::vector<uint8_t> data;
 
     int64_t pts{}; /**< Presentation timestamp */
     int64_t dts{}; /**< Decode timestamp */
@@ -59,6 +60,12 @@ struct encoder_packet {
     /** Encoder from which the track originated from */
     std::weak_ptr<lite_obs_encoder> encoder{};
 };
+
+#define MICROSECOND_DEN 1000000
+static inline int64_t packet_dts_usec(std::shared_ptr<encoder_packet> packet)
+{
+    return packet->dts * MICROSECOND_DEN / packet->timebase_den;
+}
 
 /** Encoder input frame */
 struct encoder_frame {

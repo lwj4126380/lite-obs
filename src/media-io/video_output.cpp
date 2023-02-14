@@ -245,6 +245,11 @@ uint64_t video_output::video_output_get_frame_time()
     return d_ptr->frame_time;
 }
 
+uint32_t video_output::video_output_get_total_frames()
+{
+    return d_ptr->total_frames;
+}
+
 void video_output::video_thread_internal()
 {
     while (os_sem_wait(d_ptr->update_semaphore) == 0) {
