@@ -70,8 +70,6 @@ struct lite_obs_output_private
     video_scale_info video_conversion{};
     audio_convert_info audio_conversion{};
 
-    bool valid{};
-
     std::string last_error_message{};
 
     float audio_data[MAX_AUDIO_CHANNELS][AUDIO_OUTPUT_FRAMES]{};
@@ -122,7 +120,6 @@ bool lite_obs_output::lite_obs_output_create()
 
     d_ptr->reconnect_retry_sec = 2;
     d_ptr->reconnect_retry_max = 20;
-    d_ptr->valid = true;
 
     if (!i_create())
         blog(LOG_ERROR, "Failed to create output!");
@@ -144,7 +141,7 @@ void lite_obs_output::lite_obs_output_destroy()
 {
     blog(LOG_DEBUG, "output destroyed");
 
-    if (d_ptr->valid && d_ptr->active)
+    if (i_output_valid() && d_ptr->active)
         obs_output_actual_stop(true, 0);
 
     os_event_wait(d_ptr->stopping_event);

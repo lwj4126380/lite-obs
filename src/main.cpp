@@ -62,9 +62,10 @@ int main(int argc, char *argv[])
 
         output->lite_obs_output_start();
 
-        QThread::sleep(5);
+        QThread::sleep(2);
 
         output->lite_obs_output_stop();
+        output->lite_obs_output_destroy();
     });
 
 

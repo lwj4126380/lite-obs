@@ -5,7 +5,6 @@
 struct null_output_private
 {
     std::thread stop_thread;
-    bool stop_thread_active{};
     bool initilized{};
 };
 
@@ -42,10 +41,11 @@ bool null_output::i_create()
 
 void null_output::i_destroy()
 {
-    if (d_ptr->stop_thread_active && d_ptr->stop_thread.joinable())
+    if (d_ptr->stop_thread.joinable())
         d_ptr->stop_thread.join();
 
     d_ptr->initilized = false;
+    d_ptr.reset();
 }
 
 bool null_output::i_start()
@@ -55,7 +55,7 @@ bool null_output::i_start()
     if (!lite_obs_output_initialize_encoders())
         return false;
 
-    if (d_ptr->stop_thread_active && d_ptr->stop_thread.joinable())
+    if (d_ptr->stop_thread.joinable())
         d_ptr->stop_thread.join();
 
     lite_obs_output_begin_data_capture();
@@ -66,11 +66,13 @@ void null_output::stop_thread(void *data)
 {
     auto context = (null_output *)data;
     context->lite_obs_output_end_data_capture();
-    context->d_ptr->stop_thread_active = false;
 }
 
 void null_output::i_stop(uint64_t ts)
 {
+    if (d_ptr->stop_thread.joinable())
+        d_ptr->stop_thread.join();
+
     d_ptr->stop_thread = std::thread(stop_thread, this);
 }
 
