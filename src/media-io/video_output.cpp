@@ -224,7 +224,7 @@ bool video_output::video_output_lock_frame(video_frame *frame, int count, uint64
         cfi->count = count;
         cfi->skipped = 0;
 
-        cfi->frame.frame = *frame;
+        *frame = cfi->frame.frame;
 
         locked = true;
     }

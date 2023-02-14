@@ -1188,7 +1188,7 @@ void lite_obs_output::log_frame_info()
         blog(LOG_INFO, "Output: Total drawn frames: %u", drawn);
     else
         blog(LOG_INFO,
-             "Output '%s': Total drawn frames: %u (%u attempted)", drawn - lagged, drawn);
+             "Output: Total drawn frames: %u (%u attempted)", drawn - lagged, drawn);
 
     if (drawn && lagged)
         blog(LOG_INFO, "Output: Number of lagged frames due to rendering lag/stalls: %u (%0.1f%%)", lagged, percentage_lagged);
