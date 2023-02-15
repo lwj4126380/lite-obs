@@ -116,10 +116,10 @@ std::shared_ptr<struct encoder_packet> obs_parse_avc_packet(std::shared_ptr<enco
 {
     std::shared_ptr<encoder_packet> avc_packet = std::make_shared<encoder_packet>();
 	*avc_packet = *src;
-    avc_packet->data.clear();
+    avc_packet->data = std::make_shared<std::vector<uint8_t>>();
 
-    serialize_op op(avc_packet->data);
-    serialize_avc_data(op, src->data.data(), src->data.size(), &avc_packet->keyframe,
+    serialize_op op(*avc_packet->data.get());
+    serialize_avc_data(op, src->data->data(), src->data->size(), &avc_packet->keyframe,
 			   &avc_packet->priority);
 
 	avc_packet->drop_priority = get_drop_priority(avc_packet->priority);
@@ -195,7 +195,7 @@ void obs_parse_avc_header(std::vector<uint8_t> &header, const uint8_t *data, siz
 }
 
 void obs_extract_avc_headers(const uint8_t *packet, size_t size,
-                 std::vector<uint8_t> &new_packet_data,
+                 std::shared_ptr<std::vector<uint8_t> > new_packet_data,
                  std::vector<uint8_t> &header_data,
                  std::vector<uint8_t> &sei_data)
 {
@@ -221,15 +221,15 @@ void obs_extract_avc_headers(const uint8_t *packet, size_t size,
 			nal_end = end;
 
 		if (type == OBS_NAL_SPS || type == OBS_NAL_PPS) {
-            header_data.resize(nal_end - nal_codestart);
-            memcpy(header_data.data(), nal_codestart, nal_end - nal_codestart);
+            serialize_op op(header_data);
+            op.s_write(nal_codestart, nal_end - nal_codestart);
 		} else if (type == OBS_NAL_SEI) {
-            sei_data.resize(nal_end - nal_codestart);
-            memcpy(sei_data.data(), nal_codestart, nal_end - nal_codestart);
+            serialize_op op(sei_data);
+            op.s_write(nal_codestart, nal_end - nal_codestart);
 		} else {
-            new_packet_data.resize(nal_end - nal_codestart);
-            memcpy(new_packet_data.data(), nal_codestart, nal_end - nal_codestart);
-		}
+            serialize_op op(*new_packet_data.get());
+            op.s_write(nal_codestart, nal_end - nal_codestart);
+        }
 
 		nal_start = nal_end;
 	}

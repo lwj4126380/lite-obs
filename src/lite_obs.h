@@ -13,6 +13,7 @@ class lite_source;
 class video_output;
 class audio_output;
 class lite_obs_core_video;
+class lite_obs_core_audio;
 class lite_obs
 {
 public:
@@ -23,11 +24,13 @@ public:
     void remove_source(std::shared_ptr<lite_source> source);
 
     int obs_reset_video(obs_video_info *ovi);
+    bool obs_reset_audio(const obs_audio_info *oai);
 
     void obs_enter_graphics_context();
     void obs_leave_graphics_context();
 
     lite_obs_core_video *obs_core_video();
+    lite_obs_core_audio *obs_core_audio();
 
     void obs_shutdown();
 

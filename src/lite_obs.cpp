@@ -13,6 +13,7 @@
 #include "util/log.h"
 #include "obs-defs.h"
 #include "lite_obs_core_video.h"
+#include "lite_obs_core_audio.h"
 
 lite_obs obs;
 
@@ -29,6 +30,7 @@ struct lite_obs_private
 {
     lite_obs_data data{};
     lite_obs_core_video video{};
+    lite_obs_core_audio audio{};
 };
 
 lite_obs::lite_obs()
@@ -108,6 +110,11 @@ int lite_obs::obs_reset_video(obs_video_info *ovi)
     return d_ptr->video.lite_obs_start_video(ovi);
 }
 
+bool lite_obs::obs_reset_audio(const obs_audio_info *oai)
+{
+    return d_ptr->audio.lite_obs_start_audio(oai);
+}
+
 void lite_obs::obs_enter_graphics_context()
 {
     gs_enter_contex(d_ptr->video.graphics());
@@ -123,9 +130,15 @@ lite_obs_core_video *lite_obs::obs_core_video()
     return &d_ptr->video;
 }
 
+lite_obs_core_audio *lite_obs::obs_core_audio()
+{
+    return &d_ptr->audio;
+}
+
 void lite_obs::obs_shutdown()
 {
     d_ptr->video.lite_obs_stop_video();
+    d_ptr->audio.lite_obs_stop_audio();
 //    stop_audio();
 
 //    obs_free_audio();

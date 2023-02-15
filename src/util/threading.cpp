@@ -125,6 +125,18 @@ void os_sleep_ms(uint32_t duration)
 
 #if defined(WIN32)
 #include <Windows.h>
+#include <timeapi.h>
+class global_task_helper {
+public:
+    global_task_helper() {
+        timeBeginPeriod(1);
+    }
+
+    ~global_task_helper() {
+        timeEndPeriod(1);
+    }
+};
+static global_task_helper gh;
 bool os_sleepto_ns(uint64_t time_target)
 {
     uint64_t t = os_gettime_ns();

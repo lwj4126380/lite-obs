@@ -27,7 +27,7 @@ struct lite_ffmpeg_video_encoder_private
 
     AVFrame *vframe{};
 
-    std::vector<uint8_t> buffer{};
+    std::shared_ptr<std::vector<uint8_t>> buffer{};
     std::vector<uint8_t> header{};
     std::vector<uint8_t> sei{};
 
@@ -40,7 +40,7 @@ lite_ffmpeg_video_encoder::lite_ffmpeg_video_encoder(size_t mixer_idx)
     : lite_obs_encoder(mixer_idx)
 {
     d_ptr = std::make_unique<lite_ffmpeg_video_encoder_private>();
-
+    d_ptr->buffer = std::make_shared<std::vector<uint8_t>>();
 }
 
 lite_ffmpeg_video_encoder::~lite_ffmpeg_video_encoder()
@@ -120,7 +120,7 @@ void lite_ffmpeg_video_encoder::i_destroy()
     avcodec_close(d_ptr->context);
     av_frame_unref(d_ptr->vframe);
     av_frame_free(&d_ptr->vframe);
-    d_ptr->buffer.clear();
+    d_ptr->buffer.reset();
     d_ptr->header.clear();
     d_ptr->sei.clear();
 
@@ -182,24 +182,24 @@ bool lite_ffmpeg_video_encoder::i_encode(encoder_frame *frame, std::shared_ptr<e
             d_ptr->first_packet = false;
             obs_extract_avc_headers(av_pkt.data, av_pkt.size, d_ptr->buffer, d_ptr->header, d_ptr->sei);
         } else {
-            d_ptr->buffer.resize(av_pkt.size);
-            memcpy(d_ptr->buffer.data(), av_pkt.data, av_pkt.size);
+            d_ptr->buffer->resize(av_pkt.size);
+            memcpy(d_ptr->buffer->data(), av_pkt.data, av_pkt.size);
         }
 
         uint8_t sei_buf[102400] = {0};
         int sei_len = 0;
         bool got_sei = lite_obs_encoder_get_sei(sei_buf, &sei_len);
         if (got_sei) {
-            auto old_num = d_ptr->buffer.size();
-            d_ptr->buffer.resize(old_num + sei_len);
-            memcpy(d_ptr->buffer.data() + old_num, sei_buf, sei_len);
+            auto old_num = d_ptr->buffer->size();
+            d_ptr->buffer->resize(old_num + sei_len);
+            memcpy(d_ptr->buffer->data() + old_num, sei_buf, sei_len);
         }
 
         packet->pts = av_pkt.pts;
         packet->dts = av_pkt.dts;
         packet->data = d_ptr->buffer;
         packet->type = obs_encoder_type::OBS_ENCODER_VIDEO;
-        packet->keyframe = obs_avc_keyframe(packet->data.data(), packet->data.size());
+        packet->keyframe = obs_avc_keyframe(packet->data->data(), packet->data->size());
         *received_packet = true;
     } else {
         *received_packet = false;
@@ -209,15 +209,10 @@ bool lite_ffmpeg_video_encoder::i_encode(encoder_frame *frame, std::shared_ptr<e
     return true;
 }
 
-size_t lite_ffmpeg_video_encoder::i_get_frame_size()
-{
-    return 0;
-}
-
 bool lite_ffmpeg_video_encoder::i_get_extra_data(uint8_t **extra_data, size_t *size)
 {
     *extra_data = d_ptr->header.data();
-    *size = d_ptr->header.max_size();
+    *size = d_ptr->header.size();
     return true;
 }
 

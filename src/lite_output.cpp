@@ -9,6 +9,7 @@
 #include "lite_obs.h"
 #include "obs-defs.h"
 #include "lite_obs_core_video.h"
+#include "lite_obs_core_audio.h"
 
 #include <atomic>
 #include <thread>
@@ -116,7 +117,7 @@ void lite_obs_output::set_output_signal_callback(std::shared_ptr<lite_obs_output
 bool lite_obs_output::lite_obs_output_create()
 {
     d_ptr->video = obs.obs_core_video()->core_video();
-    //    d_ptr->audio = obs.lite_obs_get_audio(); // todo
+    d_ptr->audio = obs.obs_core_audio()->core_audio(); // todo
 
     d_ptr->reconnect_retry_sec = 2;
     d_ptr->reconnect_retry_max = 20;

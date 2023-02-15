@@ -23,12 +23,12 @@ public:
     virtual void i_destroy() = 0;
     virtual bool encoder_valid() = 0;
     virtual bool i_encode(encoder_frame *frame, std::shared_ptr<encoder_packet> packet, bool *received_packet) = 0;
-    virtual size_t i_get_frame_size() = 0;
-    virtual bool i_get_extra_data(uint8_t **extra_data, size_t *size) = 0;
-    virtual bool i_get_sei_data(uint8_t **sei_data, size_t *size) = 0;
-    virtual void i_get_audio_info(struct audio_convert_info *info) = 0;
-    virtual void i_get_video_info(struct video_scale_info *info) = 0;
-    virtual bool i_gpu_encode_available() = 0;
+    virtual size_t i_get_frame_size() { return 0; }
+    virtual bool i_get_extra_data(uint8_t **extra_data, size_t *size) { return false; }
+    virtual bool i_get_sei_data(uint8_t **sei_data, size_t *size) { return false; }
+    virtual void i_get_audio_info(struct audio_convert_info *info) {}
+    virtual void i_get_video_info(struct video_scale_info *info) {}
+    virtual bool i_gpu_encode_available() { return false; }
 
     void lite_obs_encoder_set_scaled_size(uint32_t width, uint32_t height);
     bool lite_obs_encoder_scaling_enabled();

@@ -342,7 +342,31 @@ void lite_obs_encoder::receive_audio(void *param, size_t mix_idx, struct audio_d
 
 void lite_obs_encoder::receive_video_internal(struct video_data *frame)
 {
+    auto pair = d_ptr->paired_encoder.lock();
+    struct encoder_frame enc_frame;
 
+    if (!d_ptr->first_received && pair) {
+        if (!pair->d_ptr->first_received ||
+                pair->d_ptr->first_raw_ts > frame->timestamp) {
+            return;
+        }
+    }
+
+    memset(&enc_frame, 0, sizeof(struct encoder_frame));
+
+    for (size_t i = 0; i < MAX_AV_PLANES; i++) {
+        enc_frame.data[i] = frame->frame.data[i];
+        enc_frame.linesize[i] = frame->frame.linesize[i];
+    }
+
+    if (!d_ptr->start_ts)
+        d_ptr->start_ts = frame->timestamp;
+
+    enc_frame.frames = 1;
+    enc_frame.pts = d_ptr->cur_pts;
+
+    if (do_encode(&enc_frame))
+        d_ptr->cur_pts += d_ptr->timebase_num;
 }
 
 void lite_obs_encoder::receive_video(void *param, struct video_data *frame)
@@ -581,10 +605,10 @@ void lite_obs_encoder::send_first_video_packet(encoder_callback *cb, std::shared
         return;
     }
 
-    std::vector<uint8_t> data;
-    data.resize(size + packet->data.size());
-    memcpy(data.data(), sei, size);
-    memcpy(data.data() + size, packet->data.data(), packet->data.size());
+    auto data = std::make_shared<std::vector<uint8_t>>();
+    data->resize(size + packet->data->size());
+    memcpy(data->data(), sei, size);
+    memcpy(data->data() + size, packet->data->data(), packet->data->size());
 
     auto first_packet = packet;
     first_packet->data = data;

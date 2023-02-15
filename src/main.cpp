@@ -17,8 +17,6 @@
 #include "encoder/lite_ffmpeg_video_encoder.h"
 #include "lite_obs_core_video.h"
 
-extern std::shared_ptr<gs_texture> test_texture;
-
 int main(int argc, char *argv[])
 {
     qmlRegisterType<FboInSGRenderer>("com.ypp", 1, 0, "Render");
@@ -46,6 +44,11 @@ int main(int argc, char *argv[])
         info.colorspace = video_colorspace::VIDEO_CS_601;
         info.range = video_range_type::VIDEO_RANGE_PARTIAL;
         obs.obs_reset_video(&info);
+
+        struct obs_audio_info ai;
+        ai.samples_per_sec = 48000;
+        ai.speakers = speaker_layout::SPEAKERS_STEREO;
+        obs.obs_reset_audio(&ai);
     }, Qt::DirectConnection);
 
     const QUrl url(QStringLiteral("qrc:/main.qml"));
@@ -62,7 +65,7 @@ int main(int argc, char *argv[])
 
         output->lite_obs_output_start();
 
-        QThread::sleep(2);
+        QThread::sleep(5);
 
         output->lite_obs_output_stop();
         output->lite_obs_output_destroy();

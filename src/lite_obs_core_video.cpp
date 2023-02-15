@@ -148,10 +148,18 @@ void lite_obs_core_video::video_sleep(bool raw_active, const bool gpu_active, ui
 }
 
 std::shared_ptr<gs_texture> test_texture;
+//#include <QFile>
+//#include <QImage>
 void lite_obs_core_video::render_all_sources()
 {
-    if (!test_texture)
+    if (!test_texture) {
+//        QImage f(":/test.jpg");
+//        f = f.convertedTo(QImage::Format_RGBA8888);
+//        auto b = f.bits();
+//        test_texture = gs_texture_create(f.width(), f.height(), gs_color_format::GS_RGBA, 1, (const uint8_t **)&b, GS_DYNAMIC);
+//        blog(LOG_DEBUG, test_texture ? "111111111111 " : " 2222222222222222");
         return;
+    }
 
     auto program = d_ptr->graphics->gs_get_effect_by_name("Default_Draw");
     gs_set_cur_effect(program);

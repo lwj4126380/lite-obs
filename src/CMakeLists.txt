@@ -51,6 +51,7 @@ set(liteobs_HEADERS
     lite_encoder.h
 
     lite_obs_core_video.h
+    lite_obs_core_audio.h
 
     lite_obs_avc.h
 
@@ -76,6 +77,7 @@ set(liteobs_SOURCES
     lite_encoder.cpp
 
     lite_obs_core_video.cpp
+    lite_obs_core_audio.cpp
 
     lite_obs_avc.cpp
 
@@ -117,14 +119,18 @@ set(liteobs_graphics_SOURCES
 set(liteobs_plugin_HEADERS
     encoder/obs-ffmpeg-formats.h
     encoder/lite_ffmpeg_video_encoder.h
+    encoder/lite_aac_encoder.h
 
     output/null_output.h
+    output/lite_ffmpeg_mux.h
     )
 
 set(liteobs_plugin_SOURCES
     encoder/lite_ffmpeg_video_encoder.cpp
+    encoder/lite_aac_encoder.cpp
 
     output/null_output.cpp
+    output/lite_ffmpeg_mux.cpp
     )
 
 #platform deps
@@ -138,7 +144,7 @@ if(WIN32)
         set(FFMPEG_LIB_PATH ${CMAKE_SOURCE_DIR}/third-party/ffmpeg/${FFMPEG_PLATFORM_NAME}/lib/x86)
     endif()
     set(FFMPEG_LIBS ${FFMPEG_LIB_PATH}/ffmpeg.lib)
-    set(THIRD_PARTY_LIBS ${FFMPEG_LIBS} glad)
+    set(THIRD_PARTY_LIBS ${FFMPEG_LIBS} glad Winmm)
 
     list(APPEND liteobs_graphics_SOURCES graphics/gs_device_windows.cpp)
 elseif(ANDROID)

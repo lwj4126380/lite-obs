@@ -17,7 +17,7 @@ enum class obs_encoder_type {
 
 class lite_obs_encoder;
 struct encoder_packet {
-    std::vector<uint8_t> data;
+    std::shared_ptr<std::vector<uint8_t>> data;
 
     int64_t pts{}; /**< Presentation timestamp */
     int64_t dts{}; /**< Decode timestamp */

@@ -30,6 +30,6 @@ const uint8_t *obs_avc_find_startcode(const uint8_t *p, const uint8_t *end);
 std::shared_ptr<struct encoder_packet> obs_parse_avc_packet(std::shared_ptr<struct encoder_packet> src);
 void obs_parse_avc_header(std::vector<uint8_t> &header, const uint8_t *data, size_t size);
 void obs_extract_avc_headers(const uint8_t *packet, size_t size,
-                    std::vector<uint8_t> &new_packet_data,
+                    std::shared_ptr<std::vector<uint8_t>> new_packet_data,
                     std::vector<uint8_t> &header_data,
                     std::vector<uint8_t> &sei_data);

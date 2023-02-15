@@ -1,6 +1,7 @@
 #include "null_output.h"
 #include <thread>
 #include "util/log.h"
+#include "lite_encoder.h"
 
 struct null_output_private
 {
@@ -25,7 +26,7 @@ bool null_output::i_has_video()
 
 bool null_output::i_has_audio()
 {
-    return false;
+    return true;
 }
 
 bool null_output::i_encoded()
@@ -85,10 +86,31 @@ void null_output::i_raw_audio(audio_data *frames)
 {
 
 }
-
+//#include <QFile>
+//QFile *ff;
 void null_output::i_encoded_packet(std::shared_ptr<encoder_packet> packet)
 {
-    blog(LOG_DEBUG, "======== %d", (int)packet->data.size());
+//    if (!ff) {
+//        ff = new QFile("D:\\ccc.h264");
+//        ff->open(QFile::ReadWrite | QFile::Truncate);
+//    }
+//    static bool ss = true;
+//    if (ss) {
+//        auto ec = lite_obs_output_get_video_encoder();
+//        if (ec) {
+//            uint8_t *extra;
+//            size_t size;
+//            if (ec->lite_obs_encoder_get_extra_data(&extra, &size)) {
+//                ff->write((char *)extra, size);
+//            }
+//        }
+//        ss = false;
+//    }
+//    auto aa = packet->data->data();
+//    auto s = packet->data->size();
+
+//    ff->write((char *)packet->data->data(), packet->data->size());
+//    blog(LOG_DEBUG, "======== %d", (int)packet->data->size());
 }
 
 uint64_t null_output::i_get_total_bytes()

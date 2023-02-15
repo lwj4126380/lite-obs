@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include "media-io/video_info.h"
+#include "media-io/audio_info.h"
 #include "media-io/media-io-defs.h"
 
 #define NUM_TEXTURES 2
@@ -29,4 +30,9 @@ struct obs_video_info {
 
     video_colorspace colorspace{}; /**< YUV type (if YUV) */
     video_range_type range{};      /**< YUV range (if YUV) */
+};
+
+struct obs_audio_info {
+    uint32_t samples_per_sec{};
+    enum speaker_layout speakers{};
 };
